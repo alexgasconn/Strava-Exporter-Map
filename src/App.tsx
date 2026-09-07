@@ -157,45 +157,49 @@ export default function App() {
   const completedPeaks = allPeaks.filter(p => completedPeakIds.has(p.id));
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
-      <MapView
-        activities={activities}
-        viewMode={viewMode}
-        peaks={peaksToShow}
-        showPeaks={showPeaks}
-        completedPeakIds={completedPeakIds}
-        completedPeaks={completedPeaks}
-        mapStyleUrl={MAP_STYLES[mapStyleKey]}
-        colorByGroups={colorByGroups}
-      />
-      <Sidebar
-        onFileUpload={handleFileUpload}
-        activities={activities}
-        loading={loading}
-        progress={progress}
-        progressMsg={progressMsg}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
+    <div className="flex h-screen bg-slate-950 font-sans">
+      <div className="w-80 border-r border-slate-800/60">
+        <Sidebar
+          onFileUpload={handleFileUpload}
+          activities={activities}
+          loading={loading}
+          progress={progress}
+          progressMsg={progressMsg}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
 
-        peaks={peaksToShow}
-        showPeaks={showPeaks}
-        setShowPeaks={setShowPeaks}
-        onlyEssential={onlyEssential}
-        setOnlyEssential={setOnlyEssential}
-        peakSearch={peakSearch}
-        setPeakSearch={setPeakSearch}
-        completionFilter={completionFilter}
-        setCompletionFilter={setCompletionFilter}
-        visiblePeakIds={visiblePeakIds}
-        setVisiblePeakIds={setVisiblePeakIds}
-        completedPeakIds={completedPeakIds}
-        proximityMeters={proximityMeters}
-        setProximityMeters={setProximityMeters}
-        colorByGroups={colorByGroups}
-        setColorByGroups={setColorByGroups}
-        mapStyleKey={mapStyleKey}
-        setMapStyleKey={setMapStyleKey}
-      />
+          peaks={peaksToShow}
+          showPeaks={showPeaks}
+          setShowPeaks={setShowPeaks}
+          onlyEssential={onlyEssential}
+          setOnlyEssential={setOnlyEssential}
+          peakSearch={peakSearch}
+          setPeakSearch={setPeakSearch}
+          completionFilter={completionFilter}
+          setCompletionFilter={setCompletionFilter}
+          visiblePeakIds={visiblePeakIds}
+          setVisiblePeakIds={setVisiblePeakIds}
+          completedPeakIds={completedPeakIds}
+          proximityMeters={proximityMeters}
+          setProximityMeters={setProximityMeters}
+          colorByGroups={colorByGroups}
+          setColorByGroups={setColorByGroups}
+          mapStyleKey={mapStyleKey}
+          setMapStyleKey={setMapStyleKey}
+        />
+      </div>
+      <div className="flex-1 relative">
+        <MapView
+          activities={activities}
+          viewMode={viewMode}
+          peaks={showPeaks ? peaksToShow : []}
+          showPeaks={showPeaks}
+          completedPeakIds={completedPeakIds}
+          completedPeaks={completedPeaks}
+          mapStyleUrl={MAP_STYLES[mapStyleKey]}
+          colorByGroups={colorByGroups}
+        />
+      </div>
     </div>
   );
 }

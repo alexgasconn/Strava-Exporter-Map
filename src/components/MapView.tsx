@@ -258,7 +258,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   // For simplicity we just start at default and let user pan.
 
   return (
-    <div className="absolute inset-0 w-full h-full">
+    <div className="w-full h-full relative">
       <DeckGL
         viewState={viewState}
         onViewStateChange={({ viewState }) => setViewState(viewState)}

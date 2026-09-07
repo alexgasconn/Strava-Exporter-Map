@@ -55,7 +55,7 @@ export default function Sidebar({
   // no activity-type filters; show all activities
 
   return (
-    <div className="absolute top-4 left-4 z-10 w-80 max-h-[calc(100vh-2rem)] overflow-y-auto bg-slate-900/90 backdrop-blur-md text-slate-100 rounded-2xl shadow-2xl border border-slate-700/50 p-6 flex flex-col gap-6">
+    <div className="h-full w-full max-h-screen overflow-y-auto bg-slate-900/95 text-slate-100 border-r border-slate-800/50 p-6 flex flex-col gap-6">
 
       <div className="flex items-center gap-3">
         <Activity className="w-8 h-8 text-orange-500" />
