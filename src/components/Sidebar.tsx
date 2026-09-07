@@ -38,8 +38,8 @@ export default function Sidebar({
   peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, mapStyleKey, setMapStyleKey, colorByGroups, setColorByGroups
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [sortBy, setSortBy] = useState<'name'|'height'|'comarca'|'essencial'|'status'>('name');
-  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
+  const [sortBy, setSortBy] = useState<'name' | 'height' | 'comarca' | 'essencial' | 'status'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [comarcaFilter, setComarcaFilter] = useState<string>('all');
 
   const handleUploadClick = () => {
@@ -81,7 +81,7 @@ export default function Sidebar({
     const dir = sortDir === 'asc' ? 1 : -1;
     if (sortBy === 'name') return dir * a.name.localeCompare(b.name);
     if (sortBy === 'height') return dir * (Number(a.height || 0) - Number(b.height || 0));
-    if (sortBy === 'comarca') return dir * ((a.comarca||'').localeCompare(b.comarca||''));
+    if (sortBy === 'comarca') return dir * ((a.comarca || '').localeCompare(b.comarca || ''));
     if (sortBy === 'essencial') return dir * ((a.essencial ? 1 : 0) - (b.essencial ? 1 : 0));
     if (sortBy === 'status') return dir * ((completedPeakIds.has(a.id) ? 1 : 0) - (completedPeakIds.has(b.id) ? 1 : 0));
     return 0;
@@ -135,144 +135,142 @@ export default function Sidebar({
       {/* Top: View/Map Configuration */}
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">View Mode</h2>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => setViewMode('polylines')}
-                className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${viewMode === 'polylines' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-              >
-                <MapIcon className="w-5 h-5" />
-                <span className="text-xs font-medium">Lines</span>
-              </button>
-              <button
-                onClick={() => setViewMode('heatmap')}
-                className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${viewMode === 'heatmap' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-              >
-                <Flame className="w-5 h-5" />
-                <span className="text-xs font-medium">Heat</span>
-              </button>
-              <button
-                onClick={() => setViewMode('endpoints')}
-                className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${viewMode === 'endpoints' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-              >
-                <Target className="w-5 h-5" />
-                <span className="text-xs font-medium">Ends</span>
-              </button>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setViewMode('polylines')}
+            className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${viewMode === 'polylines' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+          >
+            <MapIcon className="w-5 h-5" />
+            <span className="text-xs font-medium">Lines</span>
+          </button>
+          <button
+            onClick={() => setViewMode('heatmap')}
+            className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${viewMode === 'heatmap' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+          >
+            <Flame className="w-5 h-5" />
+            <span className="text-xs font-medium">Heat</span>
+          </button>
+          <button
+            onClick={() => setViewMode('endpoints')}
+            className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${viewMode === 'endpoints' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+          >
+            <Target className="w-5 h-5" />
+            <span className="text-xs font-medium">Ends</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Basemap</h2>
+        <div className="flex gap-2">
+          <button onClick={() => setMapStyleKey('OpenStreetMap')} className={`p-2 rounded-md ${mapStyleKey === 'OpenStreetMap' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>OSM</button>
+          <button onClick={() => setMapStyleKey('CartoPositron')} className={`p-2 rounded-md ${mapStyleKey === 'CartoPositron' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Light</button>
+          <button onClick={() => setMapStyleKey('CartoDark')} className={`p-2 rounded-md ${mapStyleKey === 'CartoDark' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Dark</button>
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <button onClick={() => setColorByGroups(!colorByGroups)} className={`px-3 py-1 rounded-md ${colorByGroups ? 'bg-orange-500 text-black' : 'bg-slate-800/30'}`}>
+            {colorByGroups ? '4 Colores: ON' : '4 Colores: OFF'}
+          </button>
+          {colorByGroups && (
+            <div className="flex items-center gap-2 ml-2 text-xs">
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Ride.join(',')})` }}></span>
+                <span>Ride</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Run.join(',')})` }}></span>
+                <span>Run</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Swim.join(',')})` }}></span>
+                <span>Swim</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Other.join(',')})` }}></span>
+                <span>Other</span>
+              </div>
             </div>
+          )}
+        </div>
+      </div>
+
+
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Peaks DB</h2>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={showPeaks} onChange={e => setShowPeaks(e.target.checked)} />
+            <span className="text-sm ml-1">Mostrar picos en mapa</span>
+          </label>
+          <label className="flex items-center gap-2 ml-4">
+            <input type="checkbox" checked={onlyEssential} onChange={e => setOnlyEssential(e.target.checked)} />
+            <span className="text-sm ml-1">Solo esenciales</span>
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Search className="w-4 h-4" />
+          <input value={peakSearch} onChange={e => setPeakSearch(e.target.value)} placeholder="Buscar pico" className="w-full bg-slate-800/20 p-2 rounded-md text-sm" />
+        </div>
+
+        <div className="flex gap-2 items-center">
+          <div className="flex gap-1">
+            <button onClick={() => setCompletionFilter('all')} className={`p-2 rounded-md ${completionFilter === 'all' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Todos</button>
+            <button onClick={() => setCompletionFilter('done')} className={`p-2 rounded-md ${completionFilter === 'done' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Completados</button>
+            <button onClick={() => setCompletionFilter('todo')} className={`p-2 rounded-md ${completionFilter === 'todo' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Pendientes</button>
           </div>
-
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Basemap</h2>
-            <div className="flex gap-2">
-              <button onClick={() => setMapStyleKey('OpenStreetMap')} className={`p-2 rounded-md ${mapStyleKey === 'OpenStreetMap' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>OSM</button>
-              <button onClick={() => setMapStyleKey('CartoPositron')} className={`p-2 rounded-md ${mapStyleKey === 'CartoPositron' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Light</button>
-              <button onClick={() => setMapStyleKey('CartoDark')} className={`p-2 rounded-md ${mapStyleKey === 'CartoDark' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Dark</button>
-            </div>
-
-            <div className="mt-2 flex items-center gap-2">
-              <button onClick={() => setColorByGroups(!colorByGroups)} className={`px-3 py-1 rounded-md ${colorByGroups ? 'bg-orange-500 text-black' : 'bg-slate-800/30'}`}>
-                {colorByGroups ? '4 Colores: ON' : '4 Colores: OFF'}
-              </button>
-              {colorByGroups && (
-                <div className="flex items-center gap-2 ml-2 text-xs">
-                  <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Ride.join(',')})` }}></span>
-                    <span>Ride</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Run.join(',')})` }}></span>
-                    <span>Run</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Swim.join(',')})` }}></span>
-                    <span>Swim</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Other.join(',')})` }}></span>
-                    <span>Other</span>
-                  </div>
-                </div>
-              )}
-            </div>
+          <div className="ml-auto flex items-center gap-2 text-sm">
+            <label>Comarca:</label>
+            <select value={comarcaFilter} onChange={e => setComarcaFilter(e.target.value)} className="bg-slate-800/30 p-1 rounded">
+              <option value="all">Todas</option>
+              {comarcaOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
+        </div>
 
+        <div className="flex flex-col gap-2">
+          <label className="text-sm">Umbral de proximidad: <span className="font-medium">{proximityMeters} m</span></label>
+          <input type="range" min={20} max={500} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} />
+        </div>
 
-            <div className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Peaks DB</h2>
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={showPeaks} onChange={e => setShowPeaks(e.target.checked)} />
-                  <span className="text-sm ml-1">Mostrar picos en mapa</span>
-                </label>
-                <label className="flex items-center gap-2 ml-4">
-                  <input type="checkbox" checked={onlyEssential} onChange={e => setOnlyEssential(e.target.checked)} />
-                  <span className="text-sm ml-1">Solo esenciales</span>
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Search className="w-4 h-4" />
-                <input value={peakSearch} onChange={e => setPeakSearch(e.target.value)} placeholder="Buscar pico" className="w-full bg-slate-800/20 p-2 rounded-md text-sm" />
-              </div>
-
-              <div className="flex gap-2 items-center">
-                <div className="flex gap-1">
-                  <button onClick={() => setCompletionFilter('all')} className={`p-2 rounded-md ${completionFilter === 'all' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Todos</button>
-                  <button onClick={() => setCompletionFilter('done')} className={`p-2 rounded-md ${completionFilter === 'done' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Completados</button>
-                  <button onClick={() => setCompletionFilter('todo')} className={`p-2 rounded-md ${completionFilter === 'todo' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Pendientes</button>
-                </div>
-                <div className="ml-auto flex items-center gap-2 text-sm">
-                  <label>Comarca:</label>
-                  <select value={comarcaFilter} onChange={e => setComarcaFilter(e.target.value)} className="bg-slate-800/30 p-1 rounded">
-                    <option value="all">Todas</option>
-                    {comarcaOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm">Umbral de proximidad: <span className="font-medium">{proximityMeters} m</span></label>
-                <input type="range" min={20} max={500} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} />
-              </div>
-
-              <div className="max-h-[38vh] overflow-y-auto mt-2">
-                <table className="w-full text-sm">
-                  <thead className="text-slate-400 text-xs">
-                    <tr>
-                      <th className="text-left">&nbsp;</th>
-                      <th onClick={() => toggleSort('name')} className="cursor-pointer">Pico {sortBy==='name' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
-                      <th onClick={() => toggleSort('height')} className="cursor-pointer">Alt {sortBy==='height' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
-                      <th onClick={() => toggleSort('comarca')} className="cursor-pointer">Comarca {sortBy==='comarca' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
-                      <th onClick={() => toggleSort('essencial')} className="cursor-pointer">Ess {sortBy==='essencial' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
-                      <th onClick={() => toggleSort('status')} className="cursor-pointer">Estado {sortBy==='status' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedPeaks.map(p => {
-                      const visible = visiblePeakIds.has(p.id);
-                      const done = completedPeakIds.has(p.id);
-                      return (
-                        <tr key={p.id} className="hover:bg-slate-800/30">
-                          <td className="py-1">
-                            <input type="checkbox" checked={visible} onChange={() => {
-                              const next = new Set(visiblePeakIds);
-                              if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
-                              setVisiblePeakIds(next);
-                            }} />
-                          </td>
-                          <td className="py-1">{p.name}</td>
-                          <td className="text-xs text-slate-400">{p.height}</td>
-                          <td className="text-xs">{p.comarca || '—'}</td>
-                          <td className="text-xs">{p.essencial ? 'Sí' : '—'}</td>
-                          <td className="text-xs font-medium text-right">{done ? <span className="text-emerald-400">Completado</span> : <span className="text-slate-400">Pendiente</span>}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-
+        <div className="max-h-[38vh] overflow-y-auto mt-2">
+          <table className="w-full text-sm">
+            <thead className="text-slate-400 text-xs">
+              <tr>
+                <th className="text-left">&nbsp;</th>
+                <th onClick={() => toggleSort('name')} className="cursor-pointer">Pico {sortBy === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onClick={() => toggleSort('height')} className="cursor-pointer">Alt {sortBy === 'height' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onClick={() => toggleSort('comarca')} className="cursor-pointer">Comarca {sortBy === 'comarca' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onClick={() => toggleSort('essencial')} className="cursor-pointer">Ess {sortBy === 'essencial' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onClick={() => toggleSort('status')} className="cursor-pointer">Estado {sortBy === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedPeaks.map(p => {
+                const visible = visiblePeakIds.has(p.id);
+                const done = completedPeakIds.has(p.id);
+                return (
+                  <tr key={p.id} className="hover:bg-slate-800/30">
+                    <td className="py-1">
+                      <input type="checkbox" checked={visible} onChange={() => {
+                        const next = new Set(visiblePeakIds);
+                        if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                        setVisiblePeakIds(next);
+                      }} />
+                    </td>
+                    <td className="py-1">{p.name}</td>
+                    <td className="text-xs text-slate-400">{p.height}</td>
+                    <td className="text-xs">{p.comarca || '—'}</td>
+                    <td className="text-xs">{p.essencial ? 'Sí' : '—'}</td>
+                    <td className="text-xs font-medium text-right">{done ? <span className="text-emerald-400">Completado</span> : <span className="text-slate-400">Pendiente</span>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
     </div>
   );
