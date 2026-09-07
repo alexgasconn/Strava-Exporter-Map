@@ -25,6 +25,18 @@ export function getActivityColor(type: string): [number, number, number] {
   return ACTIVITY_COLORS[type] || ACTIVITY_COLORS.Other;
 }
 
+export interface Peak {
+  id: string;
+  url?: string;
+  image?: string;
+  name: string;
+  height?: number;
+  region?: string;
+  essencial?: boolean;
+  latitude: string | number;
+  longitude: string | number;
+}
+
 // Fit parser types workaround
 declare module 'fit-file-parser' {
   export default class FitParser {

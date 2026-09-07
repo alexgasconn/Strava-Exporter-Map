@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { Upload, Map as MapIcon, Target, Flame, Activity } from 'lucide-react';
-import type { ViewMode, StravaActivity } from '../types';
+import { Upload, Map as MapIcon, Target, Flame, Activity, Search } from 'lucide-react';
+import type { ViewMode, StravaActivity, Peak } from '../types';
 import { ACTIVITY_COLORS } from '../types';
 
 interface SidebarProps {
@@ -13,6 +13,22 @@ interface SidebarProps {
   setViewMode: (m: ViewMode) => void;
   filteredTypes: Set<string>;
   setFilteredTypes: (types: Set<string>) => void;
+  // peaks props
+  peaks: Peak[];
+  showPeaks: boolean;
+  setShowPeaks: (v: boolean) => void;
+  onlyEssential: boolean;
+  setOnlyEssential: (v: boolean) => void;
+  peakSearch: string;
+  setPeakSearch: (s: string) => void;
+  completionFilter: 'all'|'done'|'todo';
+  setCompletionFilter: (f: 'all'|'done'|'todo') => void;
+  visiblePeakIds: Set<string>;
+  setVisiblePeakIds: (s: Set<string>) => void;
+  completedPeakIds: Set<string>;
+  togglePeakCompleted: (id: string) => void;
+  mapStyleKey: string;
+  setMapStyleKey: (k: string) => void;
 }
 
 const CATEGORIES = [
@@ -24,6 +40,7 @@ const CATEGORIES = [
 
 export default function Sidebar({
   onFileUpload, activities, loading, progress, progressMsg, viewMode, setViewMode, filteredTypes, setFilteredTypes
+  , peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, togglePeakCompleted, mapStyleKey, setMapStyleKey
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -135,6 +152,15 @@ export default function Sidebar({
           </div>
 
           <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Basemap</h2>
+            <div className="flex gap-2">
+              <button onClick={() => setMapStyleKey('OpenStreetMap')} className={`p-2 rounded-md ${mapStyleKey === 'OpenStreetMap' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>OSM</button>
+              <button onClick={() => setMapStyleKey('CartoPositron')} className={`p-2 rounded-md ${mapStyleKey === 'CartoPositron' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Light</button>
+              <button onClick={() => setMapStyleKey('CartoDark')} className={`p-2 rounded-md ${mapStyleKey === 'CartoDark' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Dark</button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Filters</h2>
             <div className="flex flex-col gap-2">
               {CATEGORIES.map(cat => {
@@ -159,6 +185,56 @@ export default function Sidebar({
                       {isActive && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                     </div>
                   </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Peaks</h2>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={showPeaks} onChange={e => setShowPeaks(e.target.checked)} />
+                <span className="text-sm ml-1">Mostrar picos</span>
+              </label>
+              <label className="flex items-center gap-2 ml-4">
+                <input type="checkbox" checked={onlyEssential} onChange={e => setOnlyEssential(e.target.checked)} />
+                <span className="text-sm ml-1">Solo esenciales</span>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              <input value={peakSearch} onChange={e => setPeakSearch(e.target.value)} placeholder="Buscar pico" className="w-full bg-slate-800/20 p-2 rounded-md text-sm" />
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={() => setCompletionFilter('all')} className={`p-2 rounded-md ${completionFilter === 'all' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Todos</button>
+              <button onClick={() => setCompletionFilter('done')} className={`p-2 rounded-md ${completionFilter === 'done' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Completados</button>
+              <button onClick={() => setCompletionFilter('todo')} className={`p-2 rounded-md ${completionFilter === 'todo' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Pendientes</button>
+            </div>
+
+            <div className="max-h-40 overflow-y-auto mt-2">
+              {peaks.slice(0, 200).map(p => {
+                const visible = visiblePeakIds.has(p.id);
+                const done = completedPeakIds.has(p.id);
+                return (
+                  <div key={p.id} className="flex items-center justify-between p-2 rounded hover:bg-slate-800/40">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" checked={visible} onChange={() => {
+                        const next = new Set(visiblePeakIds);
+                        if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                        setVisiblePeakIds(next);
+                      }} />
+                      <div>
+                        <div className="text-sm font-medium">{p.name}</div>
+                        <div className="text-xs text-slate-400">{p.height} m</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => togglePeakCompleted(p.id)} className={`px-2 py-1 text-xs rounded ${done ? 'bg-green-600' : 'bg-slate-800/30'}`}>{done ? 'Hecho' : 'Marcar'}</button>
+                    </div>
+                  </div>
                 );
               })}
             </div>

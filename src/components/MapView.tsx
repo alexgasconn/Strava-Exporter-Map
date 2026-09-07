@@ -3,7 +3,7 @@ import Map from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
-import type { StravaActivity, ViewMode } from '../types';
+import type { StravaActivity, ViewMode, Peak } from '../types';
 import { getActivityColor } from '../types';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -11,6 +11,11 @@ interface MapViewProps {
   activities: StravaActivity[];
   viewMode: ViewMode;
   filteredTypes: Set<string>;
+  // peaks overlay
+  peaks?: Peak[];
+  showPeaks?: boolean;
+  completedPeakIds?: Set<string>;
+  mapStyleUrl?: string;
 }
 
 const INITIAL_VIEW_STATE = {
@@ -21,7 +26,7 @@ const INITIAL_VIEW_STATE = {
   bearing: 0
 };
 
-export default function MapView({ activities, viewMode, filteredTypes }: MapViewProps) {
+export default function MapView({ activities, viewMode, filteredTypes, peaks, showPeaks = true, completedPeakIds, mapStyleUrl }: MapViewProps) {
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
 
   useEffect(() => {
@@ -108,6 +113,33 @@ export default function MapView({ activities, viewMode, filteredTypes }: MapView
     );
   }
 
+  if (showPeaks && peaks && peaks.length > 0) {
+    const peakData = peaks.map(p => ({
+      id: p.id,
+      name: p.name,
+      position: [Number(p.longitude), Number(p.latitude)],
+      height: p.height,
+      essencial: !!p.essencial,
+      completed: completedPeakIds ? completedPeakIds.has(p.id) : false
+    }));
+
+    layers.push(
+      new ScatterplotLayer({
+        id: 'peaks-layer',
+        data: peakData,
+        pickable: true,
+        getPosition: d => d.position,
+        getRadius: d => 50,
+        radiusUnits: 'meters',
+        radiusMinPixels: 4,
+        getFillColor: d => d.completed ? [34, 197, 94] : (d.essencial ? [250, 204, 21] : [59, 130, 246]),
+        getLineColor: [10, 10, 10],
+        lineWidthMinPixels: 1,
+        opacity: 0.9
+      })
+    );
+  }
+
   // Calculate center if we have data (first activity's first point)
   // Or better, let DeckGL handle view state if we use a controller, 
   // but to auto-center we'd need to compute bounding box. 
@@ -123,7 +155,7 @@ export default function MapView({ activities, viewMode, filteredTypes }: MapView
         getTooltip={({object}) => object && ('name' in object ? `${object.name}\n${object.distance} km` : object.type)}
       >
         <Map
-          mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+          mapStyle={mapStyleUrl || 'https://demotiles.maplibre.org/style.json'}
         />
       </DeckGL>
     </div>
