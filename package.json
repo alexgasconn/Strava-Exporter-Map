@@ -13,6 +13,7 @@
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.4.0",
     "@deck.gl/layers": "^9.4.0",
+    "@deck.gl/geo-layers": "^9.4.0",
     "@deck.gl/react": "^9.4.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
