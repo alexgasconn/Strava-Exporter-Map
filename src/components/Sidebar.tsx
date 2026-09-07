@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Upload, Map as MapIcon, Target, Flame, Activity, Search } from 'lucide-react';
 import type { ViewMode, StravaActivity, Peak } from '../types';
+import { ACTIVITY_COLORS } from '../types';
 
 interface SidebarProps {
   onFileUpload: (file: File) => void;
@@ -27,12 +28,14 @@ interface SidebarProps {
   setProximityMeters: (n: number) => void;
   mapStyleKey: string;
   setMapStyleKey: (k: string) => void;
+  colorByGroups: boolean;
+  setColorByGroups: (v: boolean) => void;
 }
 
 
 export default function Sidebar({
   onFileUpload, activities, loading, progress, progressMsg, viewMode, setViewMode,
-  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, mapStyleKey, setMapStyleKey
+  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, mapStyleKey, setMapStyleKey, colorByGroups, setColorByGroups
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -131,6 +134,32 @@ export default function Sidebar({
               <button onClick={() => setMapStyleKey('OpenStreetMap')} className={`p-2 rounded-md ${mapStyleKey === 'OpenStreetMap' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>OSM</button>
               <button onClick={() => setMapStyleKey('CartoPositron')} className={`p-2 rounded-md ${mapStyleKey === 'CartoPositron' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Light</button>
               <button onClick={() => setMapStyleKey('CartoDark')} className={`p-2 rounded-md ${mapStyleKey === 'CartoDark' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Dark</button>
+            </div>
+
+            <div className="mt-2 flex items-center gap-2">
+              <button onClick={() => setColorByGroups(!colorByGroups)} className={`px-3 py-1 rounded-md ${colorByGroups ? 'bg-orange-500 text-black' : 'bg-slate-800/30'}`}>
+                {colorByGroups ? '4 Colores: ON' : '4 Colores: OFF'}
+              </button>
+              {colorByGroups && (
+                <div className="flex items-center gap-2 ml-2 text-xs">
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Ride.join(',')})` }}></span>
+                    <span>Ride</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Run.join(',')})` }}></span>
+                    <span>Run</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Swim.join(',')})` }}></span>
+                    <span>Swim</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Other.join(',')})` }}></span>
+                    <span>Other</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

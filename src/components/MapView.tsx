@@ -17,6 +17,7 @@ interface MapViewProps {
   completedPeakIds?: Set<string>;
   completedPeaks?: Peak[];
   mapStyleUrl?: string;
+  colorByGroups?: boolean;
 }
 
 const INITIAL_VIEW_STATE = {
@@ -27,7 +28,7 @@ const INITIAL_VIEW_STATE = {
   bearing: 0
 };
 
-export default function MapView({ activities, viewMode, peaks, showPeaks = true, completedPeakIds, completedPeaks = [], mapStyleUrl }: MapViewProps) {
+export default function MapView({ activities, viewMode, peaks, showPeaks = true, completedPeakIds, completedPeaks = [], mapStyleUrl, colorByGroups = false }: MapViewProps) {
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const [popup, setPopup] = useState<null | { x: number; y: number; peak: any }>(null);
 
@@ -114,7 +115,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         widthScale: 1,
         widthMinPixels: 2,
         getPath: d => d.path,
-        getColor: d => conqueredActivityIds.has(d.id) ? [34, 197, 94] : getActivityColor(d.type),
+        getColor: d => conqueredActivityIds.has(d.id) ? [34, 197, 94] : (colorByGroups ? getActivityColor(d.type) : [249, 115, 22]),
         getWidth: d => 2
       })
     );

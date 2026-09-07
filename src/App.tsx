@@ -37,6 +37,7 @@ export default function App() {
     CartoPositron: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
   };
   const [mapStyleKey, setMapStyleKey] = useState<keyof typeof MAP_STYLES>('CartoPositron');
+  const [colorByGroups, setColorByGroups] = useState<boolean>(false);
 
   const workerRef = useRef<Worker | null>(null);
 
@@ -86,8 +87,8 @@ export default function App() {
       const R = 6371000;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
 
@@ -155,6 +156,7 @@ export default function App() {
         completedPeakIds={completedPeakIds}
         completedPeaks={completedPeaks}
         mapStyleUrl={MAP_STYLES[mapStyleKey]}
+        colorByGroups={colorByGroups}
       />
       <Sidebar
         onFileUpload={handleFileUpload}
@@ -179,6 +181,8 @@ export default function App() {
         completedPeakIds={completedPeakIds}
         proximityMeters={proximityMeters}
         setProximityMeters={setProximityMeters}
+        colorByGroups={colorByGroups}
+        setColorByGroups={setColorByGroups}
         mapStyleKey={mapStyleKey}
         setMapStyleKey={setMapStyleKey}
       />
