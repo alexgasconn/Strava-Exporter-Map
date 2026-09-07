@@ -39,6 +39,7 @@ export default function Sidebar({
   peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, mapStyleKey, setMapStyleKey, colorByGroups, setColorByGroups, onSelectPeak
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const multiFileInputRef = useRef<HTMLInputElement>(null);
   const [sortBy, setSortBy] = useState<'name' | 'height' | 'comarca' | 'essencial' | 'status'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [comarcaFilter, setComarcaFilter] = useState<string>('all');
@@ -47,10 +48,19 @@ export default function Sidebar({
     fileInputRef.current?.click();
   };
 
+  const handleMultiClick = () => {
+    multiFileInputRef.current?.click();
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = e.target.files;
+    if (files && files.length === 1) {
+      const file = files[0];
       onFileUpload(file);
+    } else if (files && files.length > 1) {
+      // dispatch a global event so App can handle multiple files if it listens
+      const evt = new CustomEvent('app-files-selected', { detail: files });
+      window.dispatchEvent(evt);
     }
     // reset
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -105,11 +115,34 @@ export default function Sidebar({
           <Upload className="w-5 h-5" />
           {loading ? 'Parsing...' : 'Upload Strava Export (.zip)'}
         </button>
+        <button
+          onClick={handleMultiClick}
+          disabled={loading}
+          className="ml-2 bg-slate-800/50 hover:bg-slate-800 text-slate-200 font-medium py-3 px-3 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Cargar archivos (.gpx/.fit)
+        </button>
         <input
           type="file"
           ref={fileInputRef}
           accept=".zip"
           onChange={handleFileChange}
+          className="hidden"
+        />
+
+        <input
+          ref={multiFileInputRef}
+          type="file"
+          multiple
+          accept=".gpx,.tcx,.fit,.gz"
+          onChange={(e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+              const evt = new CustomEvent('app-files-selected', { detail: files });
+              window.dispatchEvent(evt);
+            }
+            if (e.currentTarget) e.currentTarget.value = '';
+          }}
           className="hidden"
         />
 

@@ -114,6 +114,16 @@ export default function App() {
     };
   }, []);
 
+  // Listen for multiple-file selection events dispatched by Sidebar
+  useEffect(() => {
+    const handler = (e: any) => {
+      const files = e.detail as FileList;
+      if (files && files.length > 0) handleFilesUpload(files);
+    };
+    window.addEventListener('app-files-selected', handler as EventListener);
+    return () => window.removeEventListener('app-files-selected', handler as EventListener);
+  }, []);
+
   // initialize visiblePeakIds only when user chooses to show peaks
   useEffect(() => {
     if (showPeaks && allPeaks.length > 0 && visiblePeakIds.size === 0) {
@@ -142,6 +152,30 @@ export default function App() {
       setProgressMsg('Error reading file.');
     }
   };
+
+    const handleFilesUpload = async (files: FileList | File[]) => {
+      setLoading(true);
+      setProgress(0);
+      setProgressMsg('Initializing file parsing...');
+      setActivities([]);
+
+      try {
+        const arr = Array.from(files as FileList);
+        const toSend: { name: string; data: Uint8Array }[] = [];
+        const transfer: ArrayBuffer[] = [];
+        for (const f of arr) {
+          const buf = await f.arrayBuffer();
+          const u8 = new Uint8Array(buf);
+          toSend.push({ name: f.name, data: u8 });
+          transfer.push(u8.buffer);
+        }
+        // post files to worker; transfer underlying ArrayBuffers
+        workerRef.current?.postMessage({ type: 'PARSE_FILES', files: toSend }, transfer);
+      } catch (err) {
+        setLoading(false);
+        setProgressMsg('Error reading files.');
+      }
+    };
 
 
 

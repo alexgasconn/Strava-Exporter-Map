@@ -50,11 +50,13 @@ ctx.onmessage = async (event: MessageEvent) => {
 
       // Use unzipSync because we are already in a worker, blocking is fine and avoids async weirdness
       const unzipped = fflate.unzipSync(zipData, {
+        // Accept activity files in any folder inside the zip (not only 'activities/').
         filter: (file) => {
           if (!file || !file.name) return false;
           const name = file.name.toLowerCase();
-          return name.includes('activities/') &&
-            (name.endsWith('.gpx') || name.endsWith('.tcx') || name.endsWith('.fit') || name.endsWith('.gz'));
+          // skip directory entries
+          if (name.endsWith('/')) return false;
+          return (name.endsWith('.gpx') || name.endsWith('.tcx') || name.endsWith('.fit') || name.endsWith('.gz'));
         }
       });
 
@@ -159,6 +161,102 @@ ctx.onmessage = async (event: MessageEvent) => {
       console.error(error);
       ctx.postMessage({ type: 'ERROR', message: `Error processing zip: ${error.message}` });
     }
+  }
+
+  if (type === 'PARSE_FILES') {
+    try {
+      const files = event.data.files;
+      if (!files || !Array.isArray(files) || files.length === 0) {
+        ctx.postMessage({ type: 'ERROR', message: 'No files provided for parsing.' });
+        return;
+      }
+
+      ctx.postMessage({ type: 'PROGRESS', message: `Parsing ${files.length} provided files...`, percent: 10 });
+
+      const batchSize = 150;
+      let batch: any[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const filename = (f.name || `file_${i}`).toString();
+        let fileData = f.data;
+
+        // if Uint8Array-like wrapper
+        if (fileData && (fileData instanceof ArrayBuffer)) fileData = new Uint8Array(fileData);
+
+        // If it's gzipped (like .fit.gz, .gpx.gz)
+        if (filename.toLowerCase().endsWith('.gz')) {
+          try {
+            fileData = fflate.gunzipSync(fileData);
+          } catch (e) {
+            console.warn('Failed to gunzip', filename);
+          }
+        }
+
+        const baseName = filename.replace(/\.gz$/i, '').toLowerCase();
+        let path: [number, number][] = [];
+        let activityType = 'Other';
+
+        try {
+          if (baseName.endsWith('.gpx')) {
+            const res = parseGpx(fileData);
+            path = res.path;
+            if (res.type) activityType = res.type;
+          } else if (baseName.endsWith('.tcx')) {
+            const res = parseTcx(fileData);
+            path = res.path;
+            if (res.type) activityType = res.type;
+          } else if (baseName.endsWith('.fit')) {
+            const res = await parseFit(fileData);
+            path = res.path;
+            if (res.type) activityType = res.type;
+          }
+        } catch (e) {
+          console.warn('Failed to parse', filename, e);
+        }
+
+        if (path && path.length > 0) {
+          const activity: StravaActivity = {
+            id: filename,
+            name: filename.split(/[\\/\\\\]/).pop() || 'Unknown Activity',
+            type: activityType,
+            date: '',
+            distance: 0,
+            path
+          };
+          parsedActivities.push(activity);
+          batch.push(activity);
+        }
+
+        if (batch.length >= batchSize) {
+          ctx.postMessage({ type: 'ACTIVITY_BATCH', activities: batch });
+          if (workerPeaks && workerPeaks.length > 0) {
+            const completed = computeCompletedFromActivities(batch);
+            ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(completed) });
+          }
+          batch = [];
+        }
+      }
+
+      if (batch.length > 0) {
+        ctx.postMessage({ type: 'ACTIVITY_BATCH', activities: batch });
+        if (workerPeaks && workerPeaks.length > 0) {
+          const completed = computeCompletedFromActivities(batch);
+          ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(completed) });
+        }
+      }
+
+      if (workerPeaks && workerPeaks.length > 0) {
+        const allCompleted = computeCompletedFromActivities(parsedActivities);
+        ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(allCompleted) });
+      }
+
+      ctx.postMessage({ type: 'DONE' });
+    } catch (err: any) {
+      console.error(err);
+      ctx.postMessage({ type: 'ERROR', message: `Error parsing files: ${err?.message || String(err)}` });
+    }
+    return;
   }
 };
 
