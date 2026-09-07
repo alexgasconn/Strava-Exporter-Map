@@ -133,7 +133,7 @@ export default function App() {
         progressMsg={progressMsg}
         viewMode={viewMode}
         setViewMode={setViewMode}
-        
+
         peaks={allPeaks}
         showPeaks={showPeaks}
         setShowPeaks={setShowPeaks}

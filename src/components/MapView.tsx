@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import Map from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
-import { PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
+import { PathLayer, ScatterplotLayer, TextLayer, BitmapLayer } from '@deck.gl/layers';
+import { TileLayer } from '@deck.gl/geo-layers';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import type { StravaActivity, ViewMode, Peak } from '../types';
 import { getActivityColor } from '../types';
@@ -30,6 +31,10 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const [popup, setPopup] = useState<null | { x: number; y: number; peak: any }>(null);
 
+  // CARTO raster tiles (user-provided key)
+  const CARTO_RASTER_KEY = 'cb1_2hl3_1_c4dfd0f0c288bbb5cd981bed';
+  const CARTO_RASTER_URL = `https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_RASTER_KEY}`;
+
   useEffect(() => {
     // Auto-center when first activities are loaded
     if (activities.length > 0 && viewState === INITIAL_VIEW_STATE) {
@@ -55,8 +60,8 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
     const R = 6371000; // meters
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
 
@@ -77,6 +82,28 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   }
 
   const layers = [];
+
+  // Add CARTO raster tiles as the bottom-most layer so basemap is visible
+  layers.push(
+    new TileLayer({
+      id: 'carto-raster-tiles',
+      data: CARTO_RASTER_URL,
+      tileSize: 256,
+      minZoom: 0,
+      maxZoom: 19,
+      renderSubLayers: props => {
+        const {
+          bbox: { west, south, east, north }
+        } = props.tile;
+        return new BitmapLayer(props, {
+          id: `${props.id}-bitmap`,
+          data: null,
+          image: props.data,
+          bounds: [west, south, east, north]
+        });
+      }
+    })
+  );
 
   if (viewMode === 'polylines') {
     layers.push(
