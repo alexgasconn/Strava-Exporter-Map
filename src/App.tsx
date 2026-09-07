@@ -28,7 +28,7 @@ export default function App() {
   const [visiblePeakIds, setVisiblePeakIds] = useState<Set<string>>(new Set());
   // computed set of completed peaks (automatic, from activities)
   const [completedPeakIds, setCompletedPeakIds] = useState<Set<string>>(new Set());
-  const [proximityMeters, setProximityMeters] = useState<number>(50);
+  const [proximityMeters, setProximityMeters] = useState<number>(250);
 
   // Map style selection (default OpenStreetMap)
   const MAP_STYLES: Record<string, string> = {
