@@ -16,18 +16,15 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('polylines');
-  
-  // Default all visible
-  const [filteredTypes, setFilteredTypes] = useState<Set<string>>(
-    new Set(['Ride', 'VirtualRide', 'EBikeRide', 'Run', 'Walk', 'Hike', 'VirtualRun', 'Swim', 'Other'])
-  );
+
+  // no activity-type filtering: show all activities
 
   // Peaks (muntanyes)
   const [allPeaks] = useState<Peak[]>(() => (peaksData as Peak[] || []));
-  const [showPeaks, setShowPeaks] = useState(true);
+  const [showPeaks, setShowPeaks] = useState(false);
   const [onlyEssential, setOnlyEssential] = useState(false);
   const [peakSearch, setPeakSearch] = useState('');
-  const [completionFilter, setCompletionFilter] = useState<'all'|'done'|'todo'>('all');
+  const [completionFilter, setCompletionFilter] = useState<'all' | 'done' | 'todo'>('all');
   const [visiblePeakIds, setVisiblePeakIds] = useState<Set<string>>(new Set());
   const [completedPeakIds, setCompletedPeakIds] = useState<Set<string>>(() => {
     try {
@@ -44,16 +41,16 @@ export default function App() {
     CartoDark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
     CartoPositron: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
   };
-  const [mapStyleKey, setMapStyleKey] = useState<keyof typeof MAP_STYLES>('OpenStreetMap');
+  const [mapStyleKey, setMapStyleKey] = useState<keyof typeof MAP_STYLES>('CartoPositron');
 
   const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => {
     workerRef.current = new Worker();
-    
+
     workerRef.current.onmessage = (e) => {
       const { type, message, percent, activity } = e.data;
-      
+
       if (type === 'PROGRESS') {
         setProgressMsg(message);
         setProgress(percent);
@@ -75,19 +72,19 @@ export default function App() {
     };
   }, []);
 
-  // initialize visiblePeakIds to include all peaks on first render
+  // initialize visiblePeakIds only when user chooses to show peaks
   useEffect(() => {
-    if (allPeaks.length > 0 && visiblePeakIds.size === 0) {
+    if (showPeaks && allPeaks.length > 0 && visiblePeakIds.size === 0) {
       setVisiblePeakIds(new Set(allPeaks.map(p => p.id)));
     }
-  }, [allPeaks]);
+  }, [showPeaks, allPeaks]);
 
   const handleFileUpload = async (file: File) => {
     setLoading(true);
     setProgress(0);
     setProgressMsg('Initializing...');
     setActivities([]); // Clear previous
-    
+
     try {
       const buffer = await file.arrayBuffer();
       workerRef.current?.postMessage({ type: 'PARSE_ZIP', buffer });
@@ -102,7 +99,7 @@ export default function App() {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setCompletedPeakIds(next);
-    try { localStorage.setItem('completedPeaks', JSON.stringify(Array.from(next))); } catch (e) {}
+    try { localStorage.setItem('completedPeaks', JSON.stringify(Array.from(next))); } catch (e) { }
   };
 
   // compute peaks to show based on filters
@@ -115,18 +112,20 @@ export default function App() {
     return true;
   });
 
+  const completedPeaks = allPeaks.filter(p => completedPeakIds.has(p.id));
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
-      <MapView 
-        activities={activities} 
-        viewMode={viewMode} 
-        filteredTypes={filteredTypes}
+      <MapView
+        activities={activities}
+        viewMode={viewMode}
         peaks={peaksToShow}
         showPeaks={showPeaks}
         completedPeakIds={completedPeakIds}
+        completedPeaks={completedPeaks}
         mapStyleUrl={MAP_STYLES[mapStyleKey]}
       />
-      <Sidebar 
+      <Sidebar
         onFileUpload={handleFileUpload}
         activities={activities}
         loading={loading}
@@ -134,8 +133,7 @@ export default function App() {
         progressMsg={progressMsg}
         viewMode={viewMode}
         setViewMode={setViewMode}
-        filteredTypes={filteredTypes}
-        setFilteredTypes={setFilteredTypes}
+        
         peaks={allPeaks}
         showPeaks={showPeaks}
         setShowPeaks={setShowPeaks}
