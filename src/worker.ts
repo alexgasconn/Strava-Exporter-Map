@@ -43,6 +43,8 @@ ctx.onmessage = async (event: MessageEvent) => {
       
       ctx.postMessage({ type: 'PROGRESS', message: `Parsing ${totalRows} activities...`, percent: 20 });
       
+      const batchSize = 20;
+      let batch: any[] = [];
       for (let i = 0; i < totalRows; i++) {
         const filename = files[i];
         let fileData = unzipped[filename];
@@ -89,14 +91,22 @@ ctx.onmessage = async (event: MessageEvent) => {
             distance: 0,
             path
           };
-          ctx.postMessage({ type: 'ACTIVITY_PARSED', activity });
+          batch.push(activity);
         }
-        
+
         parsedCount++;
+        // flush batch periodically
+        if (batch.length >= batchSize) {
+          ctx.postMessage({ type: 'ACTIVITY_BATCH', activities: batch });
+          batch = [];
+        }
+
         if (parsedCount % 10 === 0) {
           ctx.postMessage({ type: 'PROGRESS', message: `Parsing tracks... ${parsedCount}/${totalRows}`, percent: 20 + Math.floor((parsedCount / totalRows) * 80) });
         }
       }
+      // send remaining
+      if (batch.length > 0) ctx.postMessage({ type: 'ACTIVITY_BATCH', activities: batch });
       
       ctx.postMessage({ type: 'DONE' });
       

@@ -45,13 +45,15 @@ export default function App() {
     workerRef.current = new Worker();
 
     workerRef.current.onmessage = (e) => {
-      const { type, message, percent, activity } = e.data;
+      const { type, message, percent, activities: batch } = e.data;
 
       if (type === 'PROGRESS') {
         setProgressMsg(message);
         setProgress(percent);
-      } else if (type === 'ACTIVITY_PARSED') {
-        setActivities(prev => [...prev, activity]);
+      } else if (type === 'ACTIVITY_BATCH') {
+        if (Array.isArray(batch) && batch.length > 0) {
+          setActivities(prev => [...prev, ...batch]);
+        }
       } else if (type === 'DONE') {
         setLoading(false);
         setProgress(100);
@@ -76,45 +78,61 @@ export default function App() {
   }, [showPeaks, allPeaks]);
 
   // compute completed peaks automatically based on activities and proximity
+  const completionTimer = useRef<number | null>(null);
   useEffect(() => {
-    if (!activities || activities.length === 0 || !allPeaks || allPeaks.length === 0) {
-      setCompletedPeakIds(new Set());
-      return;
+    // debounce heavy computation when activities update frequently
+    if (completionTimer.current) {
+      clearTimeout(completionTimer.current);
+      completionTimer.current = null;
     }
 
-    const toRad = (v: number) => v * Math.PI / 180;
-    const haversine = (lon1: number, lat1: number, lon2: number, lat2: number) => {
-      const R = 6371000;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
-
-    const completed = new Set<string>();
-
-    for (const peak of allPeaks) {
-      const plon = Number(peak.longitude);
-      const plat = Number(peak.latitude);
-      if (Number.isNaN(plon) || Number.isNaN(plat)) continue;
-
-      let found = false;
-      for (const act of activities) {
-        if (!act.path || act.path.length === 0) continue;
-        for (const pt of act.path) {
-          const lon = Number(pt[0]);
-          const lat = Number(pt[1]);
-          if (Number.isNaN(lon) || Number.isNaN(lat)) continue;
-          const d = haversine(lon, lat, plon, plat);
-          if (d <= proximityMeters) { found = true; break; }
-        }
-        if (found) break;
+    completionTimer.current = window.setTimeout(() => {
+      if (!activities || activities.length === 0 || !allPeaks || allPeaks.length === 0) {
+        setCompletedPeakIds(new Set());
+        return;
       }
-      if (found) completed.add(peak.id);
-    }
 
-    setCompletedPeakIds(completed);
+      const toRad = (v: number) => v * Math.PI / 180;
+      const haversine = (lon1: number, lat1: number, lon2: number, lat2: number) => {
+        const R = 6371000;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      };
+
+      const completed = new Set<string>();
+
+      for (const peak of allPeaks) {
+        const plon = Number(peak.longitude);
+        const plat = Number(peak.latitude);
+        if (Number.isNaN(plon) || Number.isNaN(plat)) continue;
+
+        let found = false;
+        for (const act of activities) {
+          if (!act.path || act.path.length === 0) continue;
+          for (const pt of act.path) {
+            const lon = Number(pt[0]);
+            const lat = Number(pt[1]);
+            if (Number.isNaN(lon) || Number.isNaN(lat)) continue;
+            const d = haversine(lon, lat, plon, plat);
+            if (d <= proximityMeters) { found = true; break; }
+          }
+          if (found) break;
+        }
+        if (found) completed.add(peak.id);
+      }
+
+      setCompletedPeakIds(completed);
+    }, 300);
+
+    return () => {
+      if (completionTimer.current) {
+        clearTimeout(completionTimer.current);
+        completionTimer.current = null;
+      }
+    };
   }, [activities, allPeaks, proximityMeters]);
 
   const handleFileUpload = async (file: File) => {
