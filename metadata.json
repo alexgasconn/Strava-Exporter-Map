@@ -1,0 +1,6 @@
+{
+  "name": "Strava Explorer",
+  "description": "Visualize your Strava data export on an interactive map. Supports polylines, start/end points, and heatmap views for bike, run, swim, and other activities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
