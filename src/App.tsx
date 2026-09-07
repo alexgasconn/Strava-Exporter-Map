@@ -40,19 +40,56 @@ export default function App() {
   const [colorByGroups, setColorByGroups] = useState<boolean>(false);
 
   const workerRef = useRef<Worker | null>(null);
+  // Buffering to avoid many state updates while worker sends batches
+  const activitiesBufferRef = useRef<StravaActivity[]>([]);
+  const flushScheduledRef = useRef<boolean>(false);
+  // debounce completed updates
+  const pendingCompletedRef = useRef<string[] | null>(null);
+  const completedTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     workerRef.current = new Worker();
 
     workerRef.current.onmessage = (e) => {
-      const { type, message, percent, activities: batch } = e.data;
+      const { type, message, percent, activities: batch, completedIds } = e.data;
 
       if (type === 'PROGRESS') {
         setProgressMsg(message);
         setProgress(percent);
       } else if (type === 'ACTIVITY_BATCH') {
         if (Array.isArray(batch) && batch.length > 0) {
-          setActivities(prev => [...prev, ...batch]);
+          // push into buffer and schedule a single flush to React state
+          activitiesBufferRef.current.push(...batch);
+          if (!flushScheduledRef.current) {
+            flushScheduledRef.current = true;
+            const flush = () => {
+              const toFlush = activitiesBufferRef.current.splice(0);
+              setActivities(prev => prev.concat(toFlush));
+              flushScheduledRef.current = false;
+            };
+            if (typeof (window as any).requestIdleCallback === 'function') {
+              (window as any).requestIdleCallback(flush, { timeout: 200 });
+            } else {
+              // fallback to rAF to keep UI responsive
+              window.requestAnimationFrame(() => setTimeout(flush, 50));
+            }
+          }
+        }
+      } else if (type === 'COMPLETED_UPDATE') {
+        if (Array.isArray(completedIds)) {
+          // debounce applying completed IDs to avoid frequent re-renders
+          pendingCompletedRef.current = completedIds;
+          if (completedTimerRef.current) {
+            window.clearTimeout(completedTimerRef.current);
+            completedTimerRef.current = null;
+          }
+          completedTimerRef.current = window.setTimeout(() => {
+            if (pendingCompletedRef.current) {
+              setCompletedPeakIds(new Set(pendingCompletedRef.current));
+              pendingCompletedRef.current = null;
+            }
+            completedTimerRef.current = null;
+          }, 200);
         }
       } else if (type === 'DONE') {
         setLoading(false);
@@ -64,6 +101,12 @@ export default function App() {
         console.error(message);
       }
     };
+
+    // send initial peaks and proximity when worker is ready
+    if (workerRef.current && allPeaks && allPeaks.length > 0) {
+      workerRef.current.postMessage({ type: 'SET_PEAKS', peaks: allPeaks });
+      workerRef.current.postMessage({ type: 'SET_PROXIMITY', proximity: proximityMeters });
+    }
 
     return () => {
       workerRef.current?.terminate();
@@ -77,63 +120,12 @@ export default function App() {
     }
   }, [showPeaks, allPeaks]);
 
-  // compute completed peaks automatically based on activities and proximity
-  const completionTimer = useRef<number | null>(null);
+  // Proximity changes are handled by worker; notify it so it recomputes there
   useEffect(() => {
-    // debounce heavy computation when activities update frequently
-    if (completionTimer.current) {
-      clearTimeout(completionTimer.current);
-      completionTimer.current = null;
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'SET_PROXIMITY', proximity: proximityMeters });
     }
-
-    completionTimer.current = window.setTimeout(() => {
-      if (!activities || activities.length === 0 || !allPeaks || allPeaks.length === 0) {
-        setCompletedPeakIds(new Set());
-        return;
-      }
-
-      const toRad = (v: number) => v * Math.PI / 180;
-      const haversine = (lon1: number, lat1: number, lon2: number, lat2: number) => {
-        const R = 6371000;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-      };
-
-      const completed = new Set<string>();
-
-      for (const peak of allPeaks) {
-        const plon = Number(peak.longitude);
-        const plat = Number(peak.latitude);
-        if (Number.isNaN(plon) || Number.isNaN(plat)) continue;
-
-        let found = false;
-        for (const act of activities) {
-          if (!act.path || act.path.length === 0) continue;
-          for (const pt of act.path) {
-            const lon = Number(pt[0]);
-            const lat = Number(pt[1]);
-            if (Number.isNaN(lon) || Number.isNaN(lat)) continue;
-            const d = haversine(lon, lat, plon, plat);
-            if (d <= proximityMeters) { found = true; break; }
-          }
-          if (found) break;
-        }
-        if (found) completed.add(peak.id);
-      }
-
-      setCompletedPeakIds(completed);
-    }, 300);
-
-    return () => {
-      if (completionTimer.current) {
-        clearTimeout(completionTimer.current);
-        completionTimer.current = null;
-      }
-    };
-  }, [activities, allPeaks, proximityMeters]);
+  }, [proximityMeters]);
 
   const handleFileUpload = async (file: File) => {
     setLoading(true);
