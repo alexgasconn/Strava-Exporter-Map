@@ -237,8 +237,8 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
     if (singleItems.length > 0) {
       // subtle halo under each pin for visibility — use pixel units so it's visible without zooming
       const zoom = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
-      // smaller halo so map remains uncluttered; still pixel units so visible without zooming
-      const haloRadiusPx = Math.max(8, Math.round(zoom * 2.5));
+      // much smaller halo so map remains uncluttered; pixel units so visible without zooming
+      const haloRadiusPx = Math.max(6, Math.round(zoom * 1.6));
       layers.push(
         new ScatterplotLayer({
           id: 'peaks-halo',
@@ -256,9 +256,9 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
       // dynamic pin size based on current zoom so pins are visible without zooming
       const pinSize = (d: any) => {
         const z = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
-        // smaller base size so pins are compact; still scale slightly with zoom
-        const base = d.completed ? 30 : 26;
-        return Math.max(14, Math.round(base + (z - 5) * 3));
+        // compact pin base to look like location pins; keep small but scale slightly with zoom
+        const base = d.completed ? 26 : 22;
+        return Math.max(12, Math.round(base + (z - 5) * 2.2));
       };
 
       layers.push(
