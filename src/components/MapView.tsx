@@ -235,18 +235,53 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
     }
 
     if (singleItems.length > 0) {
+      // subtle halo circle under each pin for visibility
       layers.push(
         new ScatterplotLayer({
-          id: 'peaks-single',
+          id: 'peaks-halo',
+          data: singleItems,
+          pickable: false,
+          getPosition: d => d.position,
+          getRadius: d => 60,
+          radiusUnits: 'meters',
+          getFillColor: d => d.completed ? [34, 197, 94, 60] : [0, 0, 0, 40],
+          opacity: 0.6
+        })
+      );
+
+      // emoji pins as icons (works without external assets), colored by status
+      layers.push(
+        new TextLayer({
+          id: 'peaks-icons',
           data: singleItems,
           pickable: true,
+          billboard: true,
           getPosition: d => d.position,
-          getRadius: d => 40,
-          radiusUnits: 'meters',
-          getFillColor: d => d.completed ? [34, 197, 94] : (d.essencial ? [250, 204, 21] : [59, 130, 246]),
-          getLineColor: [10, 10, 10],
-          lineWidthMinPixels: 1,
-          opacity: 0.95
+          getText: d => '📍',
+          getSize: d => d.completed ? 48 : 40,
+          getColor: d => d.completed ? [34, 197, 94] : (d.essencial ? [250, 204, 21] : [59, 130, 246]),
+          getAngle: 0,
+          getTextAnchor: 'middle',
+          getAlignmentBaseline: 'center'
+        })
+      );
+
+      // optional small label under the pin
+      layers.push(
+        new TextLayer({
+          id: 'peaks-labels',
+          data: singleItems,
+          pickable: false,
+          billboard: false,
+          getPosition: d => [d.position[0], d.position[1], 0],
+          getText: d => d.name,
+          getSize: 12,
+          getColor: [230, 230, 230],
+          getTextAnchor: 'start',
+          getAlignmentBaseline: 'top',
+          sizeUnits: 'pixels',
+          characterSet: 'auto',
+          getPixelOffset: d => [12, -18]
         })
       );
     }
