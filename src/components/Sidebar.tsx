@@ -23,7 +23,8 @@ interface SidebarProps {
   visiblePeakIds: Set<string>;
   setVisiblePeakIds: (s: Set<string>) => void;
   completedPeakIds: Set<string>;
-  togglePeakCompleted: (id: string) => void;
+  proximityMeters: number;
+  setProximityMeters: (n: number) => void;
   mapStyleKey: string;
   setMapStyleKey: (k: string) => void;
 }
@@ -31,7 +32,7 @@ interface SidebarProps {
 
 export default function Sidebar({
   onFileUpload, activities, loading, progress, progressMsg, viewMode, setViewMode,
-  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, togglePeakCompleted, mapStyleKey, setMapStyleKey
+  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, mapStyleKey, setMapStyleKey
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -157,29 +158,38 @@ export default function Sidebar({
               <button onClick={() => setCompletionFilter('todo')} className={`p-2 rounded-md ${completionFilter === 'todo' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Pendientes</button>
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label className="text-sm">Umbral de proximidad: <span className="font-medium">{proximityMeters} m</span></label>
+              <input type="range" min={20} max={200} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} />
+            </div>
+
             <div className="max-h-40 overflow-y-auto mt-2">
-              {peaks.slice(0, 200).map(p => {
-                const visible = visiblePeakIds.has(p.id);
-                const done = completedPeakIds.has(p.id);
-                return (
-                  <div key={p.id} className="flex items-center justify-between p-2 rounded hover:bg-slate-800/40">
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" checked={visible} onChange={() => {
-                        const next = new Set(visiblePeakIds);
-                        if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
-                        setVisiblePeakIds(next);
-                      }} />
-                      <div>
-                        <div className="text-sm font-medium">{p.name}</div>
-                        <div className="text-xs text-slate-400">{p.height} m</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => togglePeakCompleted(p.id)} className={`px-2 py-1 text-xs rounded ${done ? 'bg-green-600' : 'bg-slate-800/30'}`}>{done ? 'Hecho' : 'Marcar'}</button>
-                    </div>
-                  </div>
-                );
-              })}
+              <table className="w-full text-sm">
+                <thead className="text-slate-400 text-xs">
+                  <tr><th className="text-left">Pico</th><th>Alt</th><th>Ess</th><th>Estado</th></tr>
+                </thead>
+                <tbody>
+                  {peaks.slice(0, 200).map(p => {
+                    const visible = visiblePeakIds.has(p.id);
+                    const done = completedPeakIds.has(p.id);
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-800/30">
+                        <td className="py-1 flex items-center gap-2">
+                          <input type="checkbox" checked={visible} onChange={() => {
+                            const next = new Set(visiblePeakIds);
+                            if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                            setVisiblePeakIds(next);
+                          }} />
+                          <span>{p.name}</span>
+                        </td>
+                        <td className="text-xs text-slate-400">{p.height}</td>
+                        <td className="text-xs">{p.essencial ? 'Sí' : '—'}</td>
+                        <td className="text-xs font-medium text-right">{done ? <span className="text-emerald-400">Completado</span> : <span className="text-slate-400">Pendiente</span>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         </>

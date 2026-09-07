@@ -26,14 +26,9 @@ export default function App() {
   const [peakSearch, setPeakSearch] = useState('');
   const [completionFilter, setCompletionFilter] = useState<'all' | 'done' | 'todo'>('all');
   const [visiblePeakIds, setVisiblePeakIds] = useState<Set<string>>(new Set());
-  const [completedPeakIds, setCompletedPeakIds] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem('completedPeaks');
-      return raw ? new Set(JSON.parse(raw)) : new Set<string>();
-    } catch (e) {
-      return new Set<string>();
-    }
-  });
+  // computed set of completed peaks (automatic, from activities)
+  const [completedPeakIds, setCompletedPeakIds] = useState<Set<string>>(new Set());
+  const [proximityMeters, setProximityMeters] = useState<number>(50);
 
   // Map style selection (default OpenStreetMap)
   const MAP_STYLES: Record<string, string> = {
@@ -79,6 +74,48 @@ export default function App() {
     }
   }, [showPeaks, allPeaks]);
 
+  // compute completed peaks automatically based on activities and proximity
+  useEffect(() => {
+    if (!activities || activities.length === 0 || !allPeaks || allPeaks.length === 0) {
+      setCompletedPeakIds(new Set());
+      return;
+    }
+
+    const toRad = (v: number) => v * Math.PI / 180;
+    const haversine = (lon1: number, lat1: number, lon2: number, lat2: number) => {
+      const R = 6371000;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    };
+
+    const completed = new Set<string>();
+
+    for (const peak of allPeaks) {
+      const plon = Number(peak.longitude);
+      const plat = Number(peak.latitude);
+      if (Number.isNaN(plon) || Number.isNaN(plat)) continue;
+
+      let found = false;
+      for (const act of activities) {
+        if (!act.path || act.path.length === 0) continue;
+        for (const pt of act.path) {
+          const lon = Number(pt[0]);
+          const lat = Number(pt[1]);
+          if (Number.isNaN(lon) || Number.isNaN(lat)) continue;
+          const d = haversine(lon, lat, plon, plat);
+          if (d <= proximityMeters) { found = true; break; }
+        }
+        if (found) break;
+      }
+      if (found) completed.add(peak.id);
+    }
+
+    setCompletedPeakIds(completed);
+  }, [activities, allPeaks, proximityMeters]);
+
   const handleFileUpload = async (file: File) => {
     setLoading(true);
     setProgress(0);
@@ -94,13 +131,7 @@ export default function App() {
     }
   };
 
-  const togglePeakCompleted = (id: string) => {
-    const next = new Set(completedPeakIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setCompletedPeakIds(next);
-    try { localStorage.setItem('completedPeaks', JSON.stringify(Array.from(next))); } catch (e) { }
-  };
+
 
   // compute peaks to show based on filters
   const peaksToShow = allPeaks.filter(p => {
@@ -134,7 +165,7 @@ export default function App() {
         viewMode={viewMode}
         setViewMode={setViewMode}
 
-        peaks={allPeaks}
+        peaks={peaksToShow}
         showPeaks={showPeaks}
         setShowPeaks={setShowPeaks}
         onlyEssential={onlyEssential}
@@ -146,7 +177,8 @@ export default function App() {
         visiblePeakIds={visiblePeakIds}
         setVisiblePeakIds={setVisiblePeakIds}
         completedPeakIds={completedPeakIds}
-        togglePeakCompleted={togglePeakCompleted}
+        proximityMeters={proximityMeters}
+        setProximityMeters={setProximityMeters}
         mapStyleKey={mapStyleKey}
         setMapStyleKey={setMapStyleKey}
       />
