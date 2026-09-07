@@ -30,12 +30,13 @@ interface SidebarProps {
   setMapStyleKey: (k: string) => void;
   colorByGroups: boolean;
   setColorByGroups: (v: boolean) => void;
+  onSelectPeak?: (p: any) => void;
 }
 
 
 export default function Sidebar({
   onFileUpload, activities, loading, progress, progressMsg, viewMode, setViewMode,
-  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, mapStyleKey, setMapStyleKey, colorByGroups, setColorByGroups
+  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, mapStyleKey, setMapStyleKey, colorByGroups, setColorByGroups, onSelectPeak
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sortBy, setSortBy] = useState<'name' | 'height' | 'comarca' | 'essencial' | 'status'>('name');
@@ -259,7 +260,7 @@ export default function Sidebar({
                         setVisiblePeakIds(next);
                       }} />
                     </td>
-                    <td className="py-1">{p.name}</td>
+                    <td className="py-1"><button onClick={() => onSelectPeak?.(p)} className="text-left w-full text-sm hover:underline">{p.name}</button></td>
                     <td className="text-xs text-slate-400">{p.height}</td>
                     <td className="text-xs">{p.comarca || '—'}</td>
                     <td className="text-xs">{p.essencial ? 'Sí' : '—'}</td>

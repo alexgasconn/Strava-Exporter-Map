@@ -29,6 +29,7 @@ export default function App() {
   // computed set of completed peaks (automatic, from activities)
   const [completedPeakIds, setCompletedPeakIds] = useState<Set<string>>(new Set());
   const [proximityMeters, setProximityMeters] = useState<number>(250);
+  const [selectedPeak, setSelectedPeak] = useState<null | any>(null);
 
   // Map style selection (default OpenStreetMap)
   const MAP_STYLES: Record<string, string> = {
@@ -186,6 +187,7 @@ export default function App() {
           setColorByGroups={setColorByGroups}
           mapStyleKey={mapStyleKey}
           setMapStyleKey={setMapStyleKey}
+          onSelectPeak={(p: any) => setSelectedPeak(p)}
         />
       </div>
       <div className="flex-1 relative">
@@ -198,6 +200,8 @@ export default function App() {
           completedPeaks={completedPeaks}
           mapStyleUrl={MAP_STYLES[mapStyleKey]}
           colorByGroups={colorByGroups}
+          selectedPeak={selectedPeak}
+          onSelectPeak={(p: any) => setSelectedPeak(p)}
         />
       </div>
     </div>

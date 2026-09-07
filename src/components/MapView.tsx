@@ -18,6 +18,8 @@ interface MapViewProps {
   completedPeaks?: Peak[];
   mapStyleUrl?: string;
   colorByGroups?: boolean;
+  selectedPeak?: any | null;
+  onSelectPeak?: (p: any) => void;
 }
 
 const INITIAL_VIEW_STATE = {
@@ -30,7 +32,7 @@ const INITIAL_VIEW_STATE = {
 
 export default function MapView({ activities, viewMode, peaks, showPeaks = true, completedPeakIds, completedPeaks = [], mapStyleUrl, colorByGroups = false }: MapViewProps) {
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-  const [popup, setPopup] = useState<null | { x: number; y: number; peak: any }>(null);
+  const [popup, setPopup] = useState<null | { x?: number; y?: number; peak: any }>(null);
 
   // CARTO raster tiles (user-provided key)
   const CARTO_RASTER_KEY = 'cb1_2hl3_1_c4dfd0f0c288bbb5cd981bed';
@@ -52,6 +54,38 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
       }
     }
   }, [activities, viewState]);
+
+  // show popup when selectedPeak prop changes (from Sidebar click)
+  useEffect(() => {
+    if (typeof (selectedPeak) !== 'undefined' && selectedPeak) {
+      // selectedPeak may be either the internal singleItems object (has .position)
+      // or a raw Peak from the JSON (has latitude/longitude). Handle both.
+      let lon: number | null = null;
+      let lat: number | null = null;
+      let popupPeak: any = null;
+      if ((selectedPeak as any).position && Array.isArray((selectedPeak as any).position)) {
+        lon = Number((selectedPeak as any).position[0]);
+        lat = Number((selectedPeak as any).position[1]);
+        popupPeak = selectedPeak;
+      } else if ((selectedPeak as any).longitude && (selectedPeak as any).latitude) {
+        lon = Number((selectedPeak as any).longitude);
+        lat = Number((selectedPeak as any).latitude);
+        popupPeak = {
+          id: selectedPeak.id,
+          name: selectedPeak.name,
+          height: selectedPeak.height,
+          image: selectedPeak.image,
+          url: selectedPeak.url,
+          position: [lon, lat]
+        };
+      }
+
+      if (lon !== null && lat !== null) {
+        setViewState(v => ({ ...v, longitude: lon as number, latitude: lat as number, zoom: Math.max((v as any).zoom, 10) }));
+        setPopup({ peak: popupPeak });
+      }
+    }
+  }, [selectedPeak]);
 
   const visibleActivities = activities; // show all activity types
 
@@ -305,6 +339,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
           } else {
             // single peak clicked
             setPopup({ x: info.x, y: info.y, peak: obj });
+            if (onSelectPeak) onSelectPeak(obj);
           }
         }}
         getTooltip={({ object }) => object && ('name' in object ? `${object.name}\n${object.distance} km` : object.type)}
