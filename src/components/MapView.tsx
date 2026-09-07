@@ -30,7 +30,7 @@ const INITIAL_VIEW_STATE = {
   bearing: 0
 };
 
-export default function MapView({ activities, viewMode, peaks, showPeaks = true, completedPeakIds, completedPeaks = [], mapStyleUrl, colorByGroups = false }: MapViewProps) {
+export default function MapView({ activities, viewMode, peaks, showPeaks = true, completedPeakIds, completedPeaks = [], mapStyleUrl, colorByGroups = false, selectedPeak = null, onSelectPeak }: MapViewProps) {
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const [popup, setPopup] = useState<null | { x?: number; y?: number; peak: any }>(null);
 

@@ -153,29 +153,29 @@ export default function App() {
     }
   };
 
-    const handleFilesUpload = async (files: FileList | File[]) => {
-      setLoading(true);
-      setProgress(0);
-      setProgressMsg('Initializing file parsing...');
-      setActivities([]);
+  const handleFilesUpload = async (files: FileList | File[]) => {
+    setLoading(true);
+    setProgress(0);
+    setProgressMsg('Initializing file parsing...');
+    setActivities([]);
 
-      try {
-        const arr = Array.from(files as FileList);
-        const toSend: { name: string; data: Uint8Array }[] = [];
-        const transfer: ArrayBuffer[] = [];
-        for (const f of arr) {
-          const buf = await f.arrayBuffer();
-          const u8 = new Uint8Array(buf);
-          toSend.push({ name: f.name, data: u8 });
-          transfer.push(u8.buffer);
-        }
-        // post files to worker; transfer underlying ArrayBuffers
-        workerRef.current?.postMessage({ type: 'PARSE_FILES', files: toSend }, transfer);
-      } catch (err) {
-        setLoading(false);
-        setProgressMsg('Error reading files.');
+    try {
+      const arr = Array.from(files as FileList);
+      const toSend: { name: string; data: Uint8Array }[] = [];
+      const transfer: ArrayBuffer[] = [];
+      for (const f of arr) {
+        const buf = await f.arrayBuffer();
+        const u8 = new Uint8Array(buf);
+        toSend.push({ name: f.name, data: u8 });
+        transfer.push(u8.buffer);
       }
-    };
+      // post files to worker; transfer underlying ArrayBuffers
+      workerRef.current?.postMessage({ type: 'PARSE_FILES', files: toSend }, transfer);
+    } catch (err) {
+      setLoading(false);
+      setProgressMsg('Error reading files.');
+    }
+  };
 
 
 
