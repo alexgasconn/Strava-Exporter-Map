@@ -69,7 +69,7 @@ export default function Sidebar({
   // no activity-type filters; show all activities
 
   // compute unique comarcas for filter dropdown
-  const comarcaOptions = Array.from(new Set(peaks.map(p => (p.comarca || '').trim()).filter(s => s))).sort();
+  const comarcaOptions = Array.from(new Set(peaks.map(p => (p.region || '').trim()).filter(s => s))).sort();
 
   const toggleSort = (col: typeof sortBy) => {
     if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -82,7 +82,7 @@ export default function Sidebar({
     if (completionFilter === 'done' && !completedPeakIds.has(p.id)) return false;
     if (completionFilter === 'todo' && completedPeakIds.has(p.id)) return false;
     if (comarcaFilter !== 'all') {
-      const c = (p.comarca || '').toLowerCase();
+      const c = (p.region || '').toLowerCase();
       if (c !== comarcaFilter.toLowerCase()) return false;
     }
     return true;
@@ -92,7 +92,7 @@ export default function Sidebar({
     const dir = sortDir === 'asc' ? 1 : -1;
     if (sortBy === 'name') return dir * a.name.localeCompare(b.name);
     if (sortBy === 'height') return dir * (Number(a.height || 0) - Number(b.height || 0));
-    if (sortBy === 'comarca') return dir * ((a.comarca || '').localeCompare(b.comarca || ''));
+    if (sortBy === 'comarca') return dir * ((a.region || '').localeCompare(b.region || ''));
     if (sortBy === 'essencial') return dir * ((a.essencial ? 1 : 0) - (b.essencial ? 1 : 0));
     if (sortBy === 'status') return dir * ((completedPeakIds.has(a.id) ? 1 : 0) - (completedPeakIds.has(b.id) ? 1 : 0));
     return 0;
@@ -268,7 +268,7 @@ export default function Sidebar({
           <input type="range" min={20} max={500} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} />
         </div>
 
-        <div className="max-h-[38vh] overflow-y-auto mt-2">
+        <div className="mt-2">
           <table className="w-full text-sm">
             <thead className="text-slate-400 text-xs">
               <tr>
@@ -295,7 +295,7 @@ export default function Sidebar({
                     </td>
                     <td className="py-1"><button onClick={() => onSelectPeak?.(p)} className="text-left w-full text-sm hover:underline">{p.name}</button></td>
                     <td className="text-xs text-slate-400">{p.height}</td>
-                    <td className="text-xs">{p.comarca || '—'}</td>
+                    <td className="text-xs">{p.region || '—'}</td>
                     <td className="text-xs">{p.essencial ? 'Sí' : '—'}</td>
                     <td className="text-xs font-medium text-right">{done ? <span className="text-emerald-400">Completado</span> : <span className="text-slate-400">Pendiente</span>}</td>
                   </tr>

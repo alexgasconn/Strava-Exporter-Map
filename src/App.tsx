@@ -193,7 +193,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-950 font-sans">
-      <div className="border-r border-slate-800/60" style={{ width: '28%' }}>
+      <div className="border-r border-slate-800/60" style={{ width: '30%' }}>
         <Sidebar
           onFileUpload={handleFileUpload}
           activities={activities}
