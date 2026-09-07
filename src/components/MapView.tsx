@@ -235,21 +235,31 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
     }
 
     if (singleItems.length > 0) {
-      // subtle halo circle under each pin for visibility
+      // subtle halo under each pin for visibility — use pixel units so it's visible without zooming
+      const zoom = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
+      const haloRadiusPx = Math.max(18, Math.round(zoom * 3.5));
       layers.push(
         new ScatterplotLayer({
           id: 'peaks-halo',
           data: singleItems,
           pickable: false,
           getPosition: d => d.position,
-          getRadius: d => 60,
-          radiusUnits: 'meters',
-          getFillColor: d => d.completed ? [34, 197, 94, 60] : [0, 0, 0, 40],
-          opacity: 0.6
+          getRadius: d => haloRadiusPx,
+          radiusUnits: 'pixels',
+          getFillColor: d => d.completed ? [34, 197, 94, 140] : [0, 0, 0, 120],
+          opacity: 0.75
         })
       );
 
       // emoji pins as simple colored icons: green = completed, red = not completed
+      // dynamic pin size based on current zoom so pins are visible without zooming
+      const pinSize = (d: any) => {
+        const z = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
+        // base pixel size scaled by zoom
+        const base = d.completed ? 42 : 38;
+        return Math.max(22, Math.round(base + (z - 5) * 4));
+      };
+
       layers.push(
         new TextLayer({
           id: 'peaks-icons',
@@ -258,7 +268,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
           billboard: true,
           getPosition: d => d.position,
           getText: d => '📍',
-          getSize: d => d.completed ? 48 : 44,
+          getSize: d => pinSize(d),
           getColor: d => d.completed ? [34, 197, 94] : [244, 63, 94],
           getAngle: 0,
           getTextAnchor: 'middle',
