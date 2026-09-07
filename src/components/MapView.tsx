@@ -249,7 +249,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         })
       );
 
-      // emoji pins as icons (works without external assets), colored by status
+      // emoji pins as simple colored icons: green = completed, red = not completed
       layers.push(
         new TextLayer({
           id: 'peaks-icons',
@@ -258,30 +258,11 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
           billboard: true,
           getPosition: d => d.position,
           getText: d => '📍',
-          getSize: d => d.completed ? 48 : 40,
-          getColor: d => d.completed ? [34, 197, 94] : (d.essencial ? [250, 204, 21] : [59, 130, 246]),
+          getSize: d => d.completed ? 48 : 44,
+          getColor: d => d.completed ? [34, 197, 94] : [244, 63, 94],
           getAngle: 0,
           getTextAnchor: 'middle',
           getAlignmentBaseline: 'center'
-        })
-      );
-
-      // optional small label under the pin
-      layers.push(
-        new TextLayer({
-          id: 'peaks-labels',
-          data: singleItems,
-          pickable: false,
-          billboard: false,
-          getPosition: d => [d.position[0], d.position[1], 0],
-          getText: d => d.name,
-          getSize: 12,
-          getColor: [230, 230, 230],
-          getTextAnchor: 'start',
-          getAlignmentBaseline: 'top',
-          sizeUnits: 'pixels',
-          characterSet: 'auto',
-          getPixelOffset: d => [12, -18]
         })
       );
     }
