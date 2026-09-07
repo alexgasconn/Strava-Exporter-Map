@@ -38,6 +38,9 @@ export default function Sidebar({
   peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, mapStyleKey, setMapStyleKey, colorByGroups, setColorByGroups
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sortBy, setSortBy] = useState<'name'|'height'|'comarca'|'essencial'|'status'>('name');
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
+  const [comarcaFilter, setComarcaFilter] = useState<string>('all');
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -53,6 +56,36 @@ export default function Sidebar({
   };
 
   // no activity-type filters; show all activities
+
+  // compute unique comarcas for filter dropdown
+  const comarcaOptions = Array.from(new Set(peaks.map(p => (p.comarca || '').trim()).filter(s => s))).sort();
+
+  const toggleSort = (col: typeof sortBy) => {
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('asc'); }
+  };
+
+  const filteredPeaks = peaks.filter(p => {
+    if (onlyEssential && !p.essencial) return false;
+    if (peakSearch && !p.name.toLowerCase().includes(peakSearch.toLowerCase())) return false;
+    if (completionFilter === 'done' && !completedPeakIds.has(p.id)) return false;
+    if (completionFilter === 'todo' && completedPeakIds.has(p.id)) return false;
+    if (comarcaFilter !== 'all') {
+      const c = (p.comarca || '').toLowerCase();
+      if (c !== comarcaFilter.toLowerCase()) return false;
+    }
+    return true;
+  });
+
+  const sortedPeaks = filteredPeaks.sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    if (sortBy === 'name') return dir * a.name.localeCompare(b.name);
+    if (sortBy === 'height') return dir * (Number(a.height || 0) - Number(b.height || 0));
+    if (sortBy === 'comarca') return dir * ((a.comarca||'').localeCompare(b.comarca||''));
+    if (sortBy === 'essencial') return dir * ((a.essencial ? 1 : 0) - (b.essencial ? 1 : 0));
+    if (sortBy === 'status') return dir * ((completedPeakIds.has(a.id) ? 1 : 0) - (completedPeakIds.has(b.id) ? 1 : 0));
+    return 0;
+  });
 
   return (
     <div className="h-full w-full max-h-screen overflow-y-auto bg-slate-900/95 text-slate-100 border-r border-slate-800/50 p-6 flex flex-col gap-6">
@@ -99,10 +132,9 @@ export default function Sidebar({
         )}
       </div>
 
-      {activities.length > 0 && (
-        <>
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">View Mode</h2>
+      {/* Top: View/Map Configuration */}
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">View Mode</h2>
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setViewMode('polylines')}
@@ -163,66 +195,84 @@ export default function Sidebar({
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Peaks</h2>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={showPeaks} onChange={e => setShowPeaks(e.target.checked)} />
-                <span className="text-sm ml-1">Mostrar picos</span>
-              </label>
-              <label className="flex items-center gap-2 ml-4">
-                <input type="checkbox" checked={onlyEssential} onChange={e => setOnlyEssential(e.target.checked)} />
-                <span className="text-sm ml-1">Solo esenciales</span>
-              </label>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Search className="w-4 h-4" />
-              <input value={peakSearch} onChange={e => setPeakSearch(e.target.value)} placeholder="Buscar pico" className="w-full bg-slate-800/20 p-2 rounded-md text-sm" />
-            </div>
+            <div className="flex flex-col gap-3">
+              <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Peaks DB</h2>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={showPeaks} onChange={e => setShowPeaks(e.target.checked)} />
+                  <span className="text-sm ml-1">Mostrar picos en mapa</span>
+                </label>
+                <label className="flex items-center gap-2 ml-4">
+                  <input type="checkbox" checked={onlyEssential} onChange={e => setOnlyEssential(e.target.checked)} />
+                  <span className="text-sm ml-1">Solo esenciales</span>
+                </label>
+              </div>
 
-            <div className="flex gap-2">
-              <button onClick={() => setCompletionFilter('all')} className={`p-2 rounded-md ${completionFilter === 'all' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Todos</button>
-              <button onClick={() => setCompletionFilter('done')} className={`p-2 rounded-md ${completionFilter === 'done' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Completados</button>
-              <button onClick={() => setCompletionFilter('todo')} className={`p-2 rounded-md ${completionFilter === 'todo' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Pendientes</button>
-            </div>
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4" />
+                <input value={peakSearch} onChange={e => setPeakSearch(e.target.value)} placeholder="Buscar pico" className="w-full bg-slate-800/20 p-2 rounded-md text-sm" />
+              </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm">Umbral de proximidad: <span className="font-medium">{proximityMeters} m</span></label>
-              <input type="range" min={20} max={200} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} />
-            </div>
+              <div className="flex gap-2 items-center">
+                <div className="flex gap-1">
+                  <button onClick={() => setCompletionFilter('all')} className={`p-2 rounded-md ${completionFilter === 'all' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Todos</button>
+                  <button onClick={() => setCompletionFilter('done')} className={`p-2 rounded-md ${completionFilter === 'done' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Completados</button>
+                  <button onClick={() => setCompletionFilter('todo')} className={`p-2 rounded-md ${completionFilter === 'todo' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Pendientes</button>
+                </div>
+                <div className="ml-auto flex items-center gap-2 text-sm">
+                  <label>Comarca:</label>
+                  <select value={comarcaFilter} onChange={e => setComarcaFilter(e.target.value)} className="bg-slate-800/30 p-1 rounded">
+                    <option value="all">Todas</option>
+                    {comarcaOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
 
-            <div className="max-h-40 overflow-y-auto mt-2">
-              <table className="w-full text-sm">
-                <thead className="text-slate-400 text-xs">
-                  <tr><th className="text-left">Pico</th><th>Alt</th><th>Ess</th><th>Estado</th></tr>
-                </thead>
-                <tbody>
-                  {peaks.slice(0, 200).map(p => {
-                    const visible = visiblePeakIds.has(p.id);
-                    const done = completedPeakIds.has(p.id);
-                    return (
-                      <tr key={p.id} className="hover:bg-slate-800/30">
-                        <td className="py-1 flex items-center gap-2">
-                          <input type="checkbox" checked={visible} onChange={() => {
-                            const next = new Set(visiblePeakIds);
-                            if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
-                            setVisiblePeakIds(next);
-                          }} />
-                          <span>{p.name}</span>
-                        </td>
-                        <td className="text-xs text-slate-400">{p.height}</td>
-                        <td className="text-xs">{p.essencial ? 'Sí' : '—'}</td>
-                        <td className="text-xs font-medium text-right">{done ? <span className="text-emerald-400">Completado</span> : <span className="text-slate-400">Pendiente</span>}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm">Umbral de proximidad: <span className="font-medium">{proximityMeters} m</span></label>
+                <input type="range" min={20} max={500} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} />
+              </div>
+
+              <div className="max-h-[38vh] overflow-y-auto mt-2">
+                <table className="w-full text-sm">
+                  <thead className="text-slate-400 text-xs">
+                    <tr>
+                      <th className="text-left">&nbsp;</th>
+                      <th onClick={() => toggleSort('name')} className="cursor-pointer">Pico {sortBy==='name' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
+                      <th onClick={() => toggleSort('height')} className="cursor-pointer">Alt {sortBy==='height' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
+                      <th onClick={() => toggleSort('comarca')} className="cursor-pointer">Comarca {sortBy==='comarca' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
+                      <th onClick={() => toggleSort('essencial')} className="cursor-pointer">Ess {sortBy==='essencial' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
+                      <th onClick={() => toggleSort('status')} className="cursor-pointer">Estado {sortBy==='status' ? (sortDir==='asc'?'↑':'↓') : ''}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedPeaks.map(p => {
+                      const visible = visiblePeakIds.has(p.id);
+                      const done = completedPeakIds.has(p.id);
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-800/30">
+                          <td className="py-1">
+                            <input type="checkbox" checked={visible} onChange={() => {
+                              const next = new Set(visiblePeakIds);
+                              if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                              setVisiblePeakIds(next);
+                            }} />
+                          </td>
+                          <td className="py-1">{p.name}</td>
+                          <td className="text-xs text-slate-400">{p.height}</td>
+                          <td className="text-xs">{p.comarca || '—'}</td>
+                          <td className="text-xs">{p.essencial ? 'Sí' : '—'}</td>
+                          <td className="text-xs font-medium text-right">{done ? <span className="text-emerald-400">Completado</span> : <span className="text-slate-400">Pendiente</span>}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+
 
     </div>
   );

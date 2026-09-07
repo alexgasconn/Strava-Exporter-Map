@@ -168,7 +168,7 @@ export default function App() {
           viewMode={viewMode}
           setViewMode={setViewMode}
 
-          peaks={peaksToShow}
+          peaks={allPeaks}
           showPeaks={showPeaks}
           setShowPeaks={setShowPeaks}
           onlyEssential={onlyEssential}
