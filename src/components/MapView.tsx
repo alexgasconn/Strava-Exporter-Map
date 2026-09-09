@@ -137,7 +137,10 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         const {
           bbox: { west, south, east, north } = props.tile.bbox as any
         } = props.tile;
-        return new BitmapLayer(props as any, {
+        // Avoid passing the tile `data` through as the layer `data` prop —
+        // Deck.gl may treat it as a container and call `count()` on it.
+        // Instead, pass a null `data` and provide the tile image via `image`.
+        return new BitmapLayer({ ...props, data: null } as any, {
           id: `${props.id}-bitmap`,
           image: props.data,
           bounds: [west, south, east, north]
