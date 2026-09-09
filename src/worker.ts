@@ -15,6 +15,7 @@ let cellSizeDeg = 0.01; // fallback
 const parsedActivities: StravaActivity[] = [];
 // Map of activity id -> metadata (name, date) parsed from activities.csv inside an export
 type ActivityMeta = { name?: string; date?: string };
+type TrackParseResult = { path: [number, number][], type?: string, timestamps?: string[], name?: string, date?: string };
 
 // activities.csv dates are human-readable ("Jan 4, 2025, 8:51:22 AM"); the UI filters on ISO.
 function toIsoDate(raw?: string): string {
@@ -164,6 +165,8 @@ ctx.onmessage = async (event: MessageEvent) => {
           let path: [number, number][] = [];
           let timestamps: string[] | undefined = undefined;
           let activityType = 'Other';
+          let embeddedName: string | undefined;
+          let embeddedDate: string | undefined;
 
           if (ext === 'gpx') {
             // ensure Uint8Array
@@ -172,12 +175,16 @@ ctx.onmessage = async (event: MessageEvent) => {
             path = res.path;
             timestamps = (res as any).timestamps;
             if ((res as any).type) activityType = (res as any).type;
+            embeddedName = (res as any).name;
+            embeddedDate = (res as any).date;
           } else if (ext === 'tcx') {
             if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
             const res = parseTcx(fileData, filename);
             path = res.path;
             timestamps = (res as any).timestamps;
             if ((res as any).type) activityType = (res as any).type;
+            embeddedName = (res as any).name;
+            embeddedDate = (res as any).date;
           } else if (ext === 'fit') {
             if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
             const res = await parseFit(fileData);
@@ -185,6 +192,8 @@ ctx.onmessage = async (event: MessageEvent) => {
             if ((res as any).type) activityType = (res as any).type;
             // parseFit will also populate timestamps if available
             timestamps = (res as any).timestamps;
+            embeddedName = (res as any).name;
+            embeddedDate = (res as any).date;
           } else {
             stats.unsupported++;
             ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Unsupported extension for ${filename}` });
@@ -196,10 +205,10 @@ ctx.onmessage = async (event: MessageEvent) => {
           if (path && path.length > 0) {
             // normalize into StravaActivity-like object
             const distance = computePathDistance(path);
-            const date = (timestamps && timestamps.length > 0) ? timestamps[0] : toIsoDate(meta?.date);
+            const date = (timestamps && timestamps.length > 0) ? timestamps[0] : toIsoDate(embeddedDate || meta?.date);
             const activity: StravaActivity = {
               id: filename,
-              name: meta?.name || filename.split(/[\\/]/).pop() || 'Unknown Activity',
+              name: meta?.name || embeddedName || filename.split(/[\\/]/).pop() || 'Unknown Activity',
               type: activityType,
               date,
               distance,
@@ -309,21 +318,29 @@ ctx.onmessage = async (event: MessageEvent) => {
         const baseName = filename.replace(/\.gz$/i, '').toLowerCase();
         let path: [number, number][] = [];
         let activityType = 'Other';
+        let activityName: string | undefined;
+        let activityDate: string | undefined;
 
         try {
           if (baseName.endsWith('.gpx')) {
             const res = parseGpx(fileData, filename);
             path = res.path;
             if (res.type) activityType = res.type;
+            activityName = res.name;
+            activityDate = res.date;
           } else if (baseName.endsWith('.tcx')) {
             const res = parseTcx(fileData, filename);
             path = res.path;
             if (res.type) activityType = res.type;
+            activityName = res.name;
+            activityDate = res.date;
           } else if (baseName.endsWith('.fit')) {
             if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
             const res = await parseFit(fileData);
             path = res.path;
             if (res.type) activityType = res.type;
+            activityName = res.name;
+            activityDate = res.date;
           }
         } catch (e) {
           console.error('Failed to parse', filename, e);
@@ -333,9 +350,9 @@ ctx.onmessage = async (event: MessageEvent) => {
         if (path && path.length > 0) {
           const activity: StravaActivity = {
             id: filename,
-            name: filename.split(/[\\/\\\\]/).pop() || 'Unknown Activity',
+            name: activityName || filename.split(/[\\/\\\\]/).pop() || 'Unknown Activity',
             type: activityType,
-            date: '',
+            date: activityDate ? toIsoDate(activityDate) : '',
             distance: 0,
             path
           };
@@ -377,7 +394,7 @@ ctx.onmessage = async (event: MessageEvent) => {
   }
 };
 
-function parseGpx(data: Uint8Array, filename?: string): { path: [number, number][], type?: string } {
+function parseGpx(data: Uint8Array, filename?: string): TrackParseResult {
   const textRaw = fflate.strFromU8(data);
   // sanitize: try to locate the XML prolog '<?xml' and slice everything before it;
   // fallback to first '<' if not found. Also trim leading control/BOM characters.
@@ -395,12 +412,16 @@ function parseGpx(data: Uint8Array, filename?: string): { path: [number, number]
     const dom = new DOMParser().parseFromString(text, 'text/xml');
     const geo = gpx(dom);
     const res = extractPathAndTypeFromGeoJSON(geo);
+    const nameNode = dom.getElementsByTagName('name')[0];
+    const timeNode = dom.getElementsByTagName('time')[0];
+    const name = nameNode?.textContent?.trim() || undefined;
+    const date = timeNode?.textContent?.trim() || undefined;
     if (!res.path || res.path.length === 0) {
       const msg = `No GPX track found in ${filename || 'uploaded file'}`;
       console.error(msg);
       ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: msg });
     }
-    return res;
+    return { ...res, name, date };
   } catch (e) {
     console.error('GPX parse error', filename, e);
     ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: String(e) });
@@ -448,7 +469,7 @@ function parseActivitiesCsv(text: string): Record<string, ActivityMeta> {
   return out;
 }
 
-function parseTcx(data: Uint8Array, filename?: string): { path: [number, number][], type?: string } {
+function parseTcx(data: Uint8Array, filename?: string): TrackParseResult {
   const textRaw = fflate.strFromU8(data);
   // sanitize: try to locate the XML prolog '<?xml' and slice everything before it;
   // fallback to first '<' if not found. Also trim leading control/BOM characters.
@@ -466,12 +487,17 @@ function parseTcx(data: Uint8Array, filename?: string): { path: [number, number]
     const dom = new DOMParser().parseFromString(text, 'text/xml');
     const geo = tcx(dom);
     const res = extractPathAndTypeFromGeoJSON(geo);
+    const activityNode = dom.getElementsByTagName('Activity')[0];
+    const idNode = activityNode?.getElementsByTagName('Id')[0];
+    const sport = activityNode?.getAttribute('Sport') || undefined;
+    const name = activityNode?.getElementsByTagName('Name')[0]?.textContent?.trim() || sport;
+    const date = idNode?.textContent?.trim() || undefined;
     if (!res.path || res.path.length === 0) {
       const msg = `No TCX track found in ${filename || 'uploaded file'}`;
       console.error(msg);
       ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: msg });
     }
-    return res;
+    return { ...res, name, date };
   } catch (e) {
     console.error('TCX parse error', filename, e);
     ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: String(e) });
@@ -550,7 +576,7 @@ function normalizePath(path: [number, number][]): [number, number][] {
   return swapped;
 }
 
-function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: string }> {
+function parseFit(data: Uint8Array): Promise<TrackParseResult> {
   return new Promise((resolve, reject) => {
     const fitParser = new FitParser({
       force: true,
@@ -580,6 +606,8 @@ function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: 
       const path: [number, number][] = [];
       const timestamps: string[] = [];
       let type: string | undefined = undefined;
+      let name: string | undefined = undefined;
+      let activityDate: string | undefined = undefined;
 
       const sportOf = (s: any) => {
         const v = String(s || '').toLowerCase();
@@ -599,6 +627,15 @@ function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: 
           for (const item of node) collect(item);
           return;
         }
+        for (const key of ['activity_name', 'activityName', 'workout_name', 'workoutName', 'name', 'title']) {
+          if (!name && typeof node[key] === 'string' && node[key].trim()) name = node[key].trim();
+        }
+        for (const key of ['start_time', 'startTime', 'timestamp']) {
+          if (!activityDate && node[key]) {
+            const parsed = new Date(node[key]);
+            if (!Number.isNaN(parsed.getTime())) activityDate = parsed.toISOString();
+          }
+        }
         if (!type && node.sport) type = sportOf(node.sport);
         const lat = node.position_lat;
         const lon = node.position_long;
@@ -616,7 +653,7 @@ function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: 
       if (path.length === 0) collect(fitData?.sessions);
       if (!type) type = sportOf(fitData?.sessions?.[0]?.sport ?? fitData?.sports?.[0]?.sport);
 
-      const res: any = { path: normalizePath(path), type };
+      const res: TrackParseResult = { path: normalizePath(path), type, name, date: activityDate };
       if (timestamps.length > 0) res.timestamps = timestamps;
       resolve(res);
     });

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Map from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
 import { WebMercatorViewport } from '@deck.gl/core';
-import { PathLayer, ScatterplotLayer, TextLayer, BitmapLayer, IconLayer } from '@deck.gl/layers';
+import { PathLayer, ScatterplotLayer, BitmapLayer, IconLayer } from '@deck.gl/layers';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import type { StravaActivity, ViewMode, Peak } from '../types';
@@ -243,20 +243,10 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   }
 
   if (showPeaks && peaks && peaks.length > 0) {
-    // Simple grid-based clustering depending on zoom
-    const zoom = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
-    const sizeDeg = Math.max(0.02, 0.8 / Math.pow(2, zoom));
-
-    const cells: Record<string, { count: number; lonSum: number; latSum: number; items: any[] }> = {};
-    for (const p of peaks) {
+    const peakItems = peaks.map(p => {
       const lon = Number(p.longitude);
       const lat = Number(p.latitude);
-      const key = `${Math.round(lon / sizeDeg)}_${Math.round(lat / sizeDeg)}`;
-      if (!cells[key]) cells[key] = { count: 0, lonSum: 0, latSum: 0, items: [] };
-      cells[key].count += 1;
-      cells[key].lonSum += lon;
-      cells[key].latSum += lat;
-      cells[key].items.push({
+      return {
         id: p.id,
         name: p.name,
         position: [lon, lat],
@@ -265,49 +255,10 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         image: p.image,
         url: p.url,
         completed: completedPeakIds ? completedPeakIds.has(p.id) : false
-      });
-    }
-
-    const clusters = Object.values(cells).map(c => {
-      if (c.count === 1) return { ...c.items[0], cluster: false };
-      const lon = c.lonSum / c.count;
-      const lat = c.latSum / c.count;
-      return { cluster: true, count: c.count, position: [lon, lat], items: c.items };
+      };
     });
 
-    const clusterItems = clusters.filter(c => c.cluster);
-    const singleItems = clusters.filter(c => !c.cluster);
-
-    if (clusterItems.length > 0) {
-      layers.push(
-        new ScatterplotLayer({
-          id: 'peaks-clusters',
-          data: clusterItems,
-          pickable: true,
-          getPosition: d => d.position,
-          getRadius: d => 200 * Math.min(4, Math.log2(d.count + 1)),
-          radiusUnits: 'meters',
-          getFillColor: d => [240, 80, 40],
-          getLineColor: [255, 255, 255],
-          opacity: 0.8
-        })
-      );
-
-      layers.push(
-        new TextLayer({
-          id: 'cluster-counts',
-          data: clusterItems,
-          getPosition: d => d.position,
-          getText: d => String(d.count),
-          getSize: 24,
-          getColor: [255, 255, 255],
-          getTextAnchor: 'middle',
-          getAlignmentBaseline: 'center'
-        })
-      );
-    }
-
-    if (singleItems.length > 0) {
+    if (peakItems.length > 0) {
       // subtle halo under each pin for visibility — use pixel units so it's visible without zooming
       const zoom = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
       // much smaller halo so map remains uncluttered; pixel units so visible without zooming
@@ -315,7 +266,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
       layers.push(
         new ScatterplotLayer({
           id: 'peaks-halo',
-          data: singleItems,
+          data: peakItems,
           pickable: false,
           getPosition: d => d.position,
           getRadius: d => haloRadiusPx,
@@ -324,15 +275,6 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
           opacity: 0.7
         })
       );
-
-      // emoji pins as simple colored icons: green = completed, red = not completed
-      // dynamic pin size based on current zoom so pins are visible without zooming
-      const pinSize = (d: any) => {
-        const z = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
-        // compact pin base to look like location pins; keep small but scale slightly with zoom
-        const base = d.completed ? 26 : 22;
-        return Math.max(12, Math.round(base + (z - 5) * 2.2));
-      };
 
       // Build an icon atlas of map pins (colored pin with inner white circle) and render via IconLayer.
       // Create atlas synchronously using canvas so we don't depend on external assets.
@@ -384,7 +326,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         layers.push(
           new IconLayer({
             id: 'peaks-icons',
-            data: singleItems,
+            data: peakItems,
             pickable: true,
             iconAtlas: atlas.atlas,
             iconMapping: atlas.mapping,
