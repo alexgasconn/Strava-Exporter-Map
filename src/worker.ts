@@ -107,11 +107,23 @@ ctx.onmessage = async (event: MessageEvent) => {
         ctx.postMessage({ type: 'DEBUG', message: `Reading ${filename} (${i + 1}/${totalRows})` });
 
         // Determine if compressed and underlying extension
-        const isGz = filename.toLowerCase().endsWith('.gz');
         try {
-          if (isGz) {
+          // Normalize to Uint8Array if needed
+          if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
+          if (!(fileData instanceof Uint8Array)) fileData = new Uint8Array(fileData as any || []);
+
+          // If filename ends with .gz or the data begins with gzip magic bytes, gunzip repeatedly
+          const nameLower = filename.toLowerCase();
+          const looksGz = nameLower.endsWith('.gz') || (fileData && fileData.length >= 2 && fileData[0] === 0x1f && fileData[1] === 0x8b);
+          if (looksGz) {
             try {
-              fileData = fflate.gunzipSync(fileData);
+              // Support nested gzip layers: keep gunzipping while it looks like gzip
+              let attempts = 0;
+              while (fileData && fileData.length >= 2 && fileData[0] === 0x1f && fileData[1] === 0x8b && attempts < 5) {
+                fileData = fflate.gunzipSync(fileData);
+                if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
+                attempts++;
+              }
             } catch (e) {
               console.error('Failed to gunzip', filename, e);
               ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Failed to gunzip: ${String(e)}` });
@@ -128,16 +140,20 @@ ctx.onmessage = async (event: MessageEvent) => {
           let activityType = 'Other';
 
           if (ext === 'gpx') {
+            // ensure Uint8Array
+            if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
             const res = parseGpx(fileData, filename);
             path = res.path;
             timestamps = (res as any).timestamps;
             if ((res as any).type) activityType = (res as any).type;
           } else if (ext === 'tcx') {
+            if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
             const res = parseTcx(fileData, filename);
             path = res.path;
             timestamps = (res as any).timestamps;
             if ((res as any).type) activityType = (res as any).type;
           } else if (ext === 'fit') {
+            if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
             const res = await parseFit(fileData);
             path = res.path;
             if ((res as any).type) activityType = (res as any).type;
@@ -234,13 +250,24 @@ ctx.onmessage = async (event: MessageEvent) => {
         // if Uint8Array-like wrapper
         if (fileData && (fileData instanceof ArrayBuffer)) fileData = new Uint8Array(fileData);
 
-        // If it's gzipped (like .fit.gz, .gpx.gz)
-        if (filename.toLowerCase().endsWith('.gz')) {
-          try {
-            fileData = fflate.gunzipSync(fileData);
-          } catch (e) {
-            console.warn('Failed to gunzip', filename);
+        // Normalize to Uint8Array
+        if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
+        if (!(fileData instanceof Uint8Array)) fileData = new Uint8Array(fileData as any || []);
+
+        // If it's gzipped (by filename or by magic bytes), gunzip repeatedly to handle nested gz
+        try {
+          const nameLower = filename.toLowerCase();
+          const looksGz = nameLower.endsWith('.gz') || (fileData && fileData.length >= 2 && fileData[0] === 0x1f && fileData[1] === 0x8b);
+          if (looksGz) {
+            let attempts = 0;
+            while (fileData && fileData.length >= 2 && fileData[0] === 0x1f && fileData[1] === 0x8b && attempts < 5) {
+              fileData = fflate.gunzipSync(fileData);
+              if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
+              attempts++;
+            }
           }
+        } catch (e) {
+          console.warn('Failed to gunzip', filename, e);
         }
 
         const baseName = filename.replace(/\.gz$/i, '').toLowerCase();
@@ -257,6 +284,7 @@ ctx.onmessage = async (event: MessageEvent) => {
             path = res.path;
             if (res.type) activityType = res.type;
           } else if (baseName.endsWith('.fit')) {
+            if (fileData instanceof ArrayBuffer) fileData = new Uint8Array(fileData as ArrayBuffer);
             const res = await parseFit(fileData);
             path = res.path;
             if (res.type) activityType = res.type;
@@ -430,9 +458,13 @@ function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: 
       mode: 'cascade',
     });
 
-    // Ensure we give fitParser an isolated Node-like buffer or ArrayBuffer
-    // Some parsers crash if they read off a view of a larger buffer.
-    const isolatedBuffer = data.slice().buffer;
+    // Normalize to Uint8Array and give fitParser an isolated ArrayBuffer.
+    let u8: Uint8Array;
+    if (data instanceof ArrayBuffer) u8 = new Uint8Array(data as ArrayBuffer);
+    else if (data instanceof Uint8Array) u8 = data as Uint8Array;
+    else u8 = new Uint8Array(data as any || []);
+    // Some parsers crash if they read off a view of a larger buffer — slice to isolate.
+    const isolatedBuffer = u8.slice().buffer;
 
     fitParser.parse(isolatedBuffer, (error: Error | null, fitData: any) => {
       if (error) {
