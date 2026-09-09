@@ -32,6 +32,8 @@ export default function App() {
   const [selectedPeak, setSelectedPeak] = useState<null | any>(null);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
+  const [skippedFiles, setSkippedFiles] = useState<{name:string,reason:string}[]>([]);
+  const [parseErrors, setParseErrors] = useState<{filename?:string,reason:string}[]>([]);
 
   // Map style: keep the default built into MapView (no user selection)
   const [colorByGroups, setColorByGroups] = useState<boolean>(false);
@@ -48,11 +50,18 @@ export default function App() {
     workerRef.current = new Worker();
 
     workerRef.current.onmessage = (e) => {
-      const { type, message, percent, activities: batch, completedIds } = e.data;
+      const { type, message, percent, activities: batch, completedIds, entries, filename, reason } = e.data;
 
       if (type === 'PROGRESS') {
         setProgressMsg(message);
         setProgress(percent);
+      } else if (type === 'DEBUG') {
+        console.debug(message);
+      } else if (type === 'SKIPPED_ENTRIES') {
+        if (Array.isArray(entries)) setSkippedFiles(entries);
+      } else if (type === 'PARSE_ERROR') {
+        setParseErrors(prev => prev.concat({ filename, reason }));
+        console.error('Worker parse error', filename, reason);
       } else if (type === 'ACTIVITY_BATCH') {
         if (Array.isArray(batch) && batch.length > 0) {
           // push into buffer and schedule a single flush to React state
@@ -219,6 +228,7 @@ export default function App() {
           setDateTo={setDateTo}
           colorByGroups={colorByGroups}
           setColorByGroups={setColorByGroups}
+          skippedFiles={skippedFiles}
 
           onSelectPeak={(p: any) => setSelectedPeak(p)}
         />

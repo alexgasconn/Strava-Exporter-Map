@@ -33,6 +33,7 @@ interface SidebarProps {
   colorByGroups: boolean;
   setColorByGroups: (v: boolean) => void;
   onSelectPeak?: (p: any) => void;
+  skippedFiles?: { name: string; reason: string }[];
 }
 
 
@@ -195,7 +196,19 @@ export default function Sidebar({
           </button>
         </div>
       </div>
-
+      {skippedFiles && skippedFiles.length > 0 && (
+        <div className="mt-4 bg-slate-800/30 p-3 rounded">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-orange-300 font-medium">Skipped entries ({skippedFiles.length})</div>
+            <details className="text-xs text-slate-300">
+              <summary className="cursor-pointer">Ver lista</summary>
+              <ul className="mt-2 max-h-40 overflow-auto text-xs text-slate-200">
+                {skippedFiles.map((s, idx) => <li key={idx} className="py-0.5">{s.name} — {s.reason}</li>)}
+              </ul>
+            </details>
+          </div>
+        </div>
+      )}
 
 
 

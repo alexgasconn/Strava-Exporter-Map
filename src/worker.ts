@@ -82,6 +82,8 @@ ctx.onmessage = async (event: MessageEvent) => {
         // send a short sample of skipped filenames to help debugging
         const sample = skipped.slice(0, 20).map(s => `${s.name} (${s.reason})`);
         ctx.postMessage({ type: 'DEBUG', message: `Skipped ${skipped.length} entries: ${sample.join(', ')}${skipped.length > 20 ? ', ...' : ''}` });
+        // also send the full list so UI can present it to the user for debugging
+        ctx.postMessage({ type: 'SKIPPED_ENTRIES', entries: skipped.map(s => ({ name: s.name, reason: s.reason })) });
       }
 
       // Work with the matched subset
