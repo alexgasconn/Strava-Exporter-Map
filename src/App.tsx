@@ -213,7 +213,7 @@ export default function App() {
           setProximityMeters={setProximityMeters}
           colorByGroups={colorByGroups}
           setColorByGroups={setColorByGroups}
-          
+
           onSelectPeak={(p: any) => setSelectedPeak(p)}
         />
       </div>

@@ -52,7 +52,7 @@ ctx.onmessage = async (event: MessageEvent) => {
       const unzipped = fflate.unzipSync(zipData, {
         // Only accept activity files under the 'activities/' folder in the zip.
         // This avoids picking up planned routes (usually under 'routes/').
-        filter: (file) => {
+        filter: (file: any) => {
           if (!file || !file.name) return false;
           // Normalize path and check folder
           const raw = file.name.replaceAll('\\\\', '/').replaceAll('\\', '/');
@@ -60,7 +60,7 @@ ctx.onmessage = async (event: MessageEvent) => {
           // skip directory entries
           if (name.endsWith('/')) return false;
           // ensure file is inside an activities/ folder at any level
-          if (!/(^|/) activities\//.test(name)) return false;
+          if (!/(^|\/)activities\//.test(name)) return false;
           return (name.endsWith('.gpx') || name.endsWith('.tcx') || name.endsWith('.fit') || name.endsWith('.gz'));
         }
       });
