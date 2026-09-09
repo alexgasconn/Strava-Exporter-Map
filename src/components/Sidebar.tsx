@@ -26,6 +26,10 @@ interface SidebarProps {
   completedPeakIds: Set<string>;
   proximityMeters: number;
   setProximityMeters: (n: number) => void;
+  dateFrom: string;
+  dateTo: string;
+  setDateFrom: (s: string) => void;
+  setDateTo: (s: string) => void;
   colorByGroups: boolean;
   setColorByGroups: (v: boolean) => void;
   onSelectPeak?: (p: any) => void;
@@ -34,7 +38,7 @@ interface SidebarProps {
 
 export default function Sidebar({
   onFileUpload, activities, loading, progress, progressMsg, viewMode, setViewMode,
-  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, colorByGroups, setColorByGroups, onSelectPeak
+  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, dateFrom, dateTo, setDateFrom, setDateTo, colorByGroups, setColorByGroups, onSelectPeak
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);
@@ -192,33 +196,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="mt-2 flex items-center gap-2">
-          <button onClick={() => setColorByGroups(!colorByGroups)} className={`px-3 py-1 rounded-md ${colorByGroups ? 'bg-orange-500 text-black' : 'bg-slate-800/30'}`}>
-            {colorByGroups ? '4 Colores: ON' : '4 Colores: OFF'}
-          </button>
-          {colorByGroups && (
-            <div className="flex items-center gap-2 ml-2 text-xs">
-              <div className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Ride.join(',')})` }}></span>
-                <span>Ride</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Run.join(',')})` }}></span>
-                <span>Run</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Swim.join(',')})` }}></span>
-                <span>Swim</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded" style={{ backgroundColor: `rgb(${ACTIVITY_COLORS.Other.join(',')})` }}></span>
-                <span>Other</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      
 
 
       <div className="flex flex-col gap-3">
@@ -232,6 +210,14 @@ export default function Sidebar({
             <input type="checkbox" checked={onlyEssential} onChange={e => setOnlyEssential(e.target.checked)} />
             <span className="text-sm ml-1">Solo esenciales</span>
           </label>
+        </div>
+
+        <div className="mt-3 flex gap-2 items-center">
+          <label className="text-sm text-slate-300">Desde</label>
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-slate-800/20 p-1 rounded" />
+          <label className="text-sm text-slate-300">Hasta</label>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-slate-800/20 p-1 rounded" />
+          <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="ml-auto text-sm text-slate-400 hover:underline">Limpiar</button>
         </div>
 
         <div className="flex items-center gap-2">

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import Map from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
-import { PathLayer, ScatterplotLayer, TextLayer, BitmapLayer } from '@deck.gl/layers';
+import { WebMercatorViewport } from '@deck.gl/core';
+import { PathLayer, ScatterplotLayer, TextLayer, BitmapLayer, IconLayer } from '@deck.gl/layers';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import type { StravaActivity, ViewMode, Peak } from '../types';
@@ -304,22 +305,67 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         return Math.max(12, Math.round(base + (z - 5) * 2.2));
       };
 
-      // Use a ScatterplotLayer to mimic Leaflet's L.circleMarker style from maps.js
-      layers.push(
-        new ScatterplotLayer({
-          id: 'peaks-icons',
-          data: singleItems,
-          pickable: true,
-          getPosition: d => d.position,
-          radiusUnits: 'pixels',
-          // Match Leaflet circleMarker radius: 5 and fillOpacity: 0.9
-          getRadius: d => 5,
-          getFillColor: d => d.completed ? [34, 197, 94, 230] : [244, 63, 94, 230],
-          getLineColor: [255, 255, 255, 255],
-          lineWidthMinPixels: 1,
-          opacity: 1
-        })
-      );
+      // Build an icon atlas of map pins (colored pin with inner white circle) and render via IconLayer.
+      // Create atlas synchronously using canvas so we don't depend on external assets.
+      const buildIconAtlas = () => {
+        const icons = [
+          { id: 'pin-completed', color: [34, 197, 94] },
+          { id: 'pin-default', color: [244, 63, 94] }
+        ];
+        const iconSize = 64;
+        const canvas = document.createElement('canvas');
+        canvas.width = iconSize * icons.length;
+        canvas.height = iconSize;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        const mapping: Record<string, any> = {};
+        icons.forEach((it, i) => {
+          const ox = i * iconSize;
+          const cx = ox + iconSize / 2;
+          const cy = iconSize * 0.36;
+          const r = iconSize * 0.28;
+          // pin head (circle)
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgb(${it.color.join(',')})`;
+          ctx.fill();
+          // pin tail (triangle)
+          ctx.beginPath();
+          ctx.moveTo(cx - r * 0.6, cy + r * 0.2);
+          ctx.lineTo(cx + r * 0.6, cy + r * 0.2);
+          ctx.lineTo(cx, cy + r * 1.45);
+          ctx.closePath();
+          ctx.fillStyle = `rgb(${it.color.join(',')})`;
+          ctx.fill();
+          // inner white circle
+          ctx.beginPath();
+          ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+
+          mapping[it.id] = { x: ox, y: 0, width: iconSize, height: iconSize, anchorY: iconSize };
+        });
+
+        const dataUrl = canvas.toDataURL();
+        return { atlas: dataUrl, mapping };
+      };
+
+      const atlas = buildIconAtlas();
+      if (atlas) {
+        layers.push(
+          new IconLayer({
+            id: 'peaks-icons',
+            data: singleItems,
+            pickable: true,
+            iconAtlas: atlas.atlas,
+            iconMapping: atlas.mapping,
+            getIcon: (d: any) => d.completed ? 'pin-completed' : 'pin-default',
+            sizeScale: 1,
+            getSize: () => 10,
+            getPosition: (d: any) => d.position
+          })
+        );
+      }
     }
   }
 
@@ -336,21 +382,47 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         controller={true}
         layers={layers}
         onClick={(info) => {
-          if (!info || !info.object) { setPopup(null); return; }
-          const obj = info.object as any;
+          if (!info) { setPopup(null); return; }
+
+          // Determine the picked object robustly. Some renderers return minimal objects,
+          // so fallback to layer data using info.index when needed.
+          let obj: any = info.object as any;
+          if ((!obj || Object.keys(obj).length === 0) && info.layer && typeof info.index === 'number') {
+            try {
+              const data = (info.layer as any).props?.data;
+              if (Array.isArray(data) && data[info.index]) obj = data[info.index];
+            } catch (e) { /* ignore */ }
+          }
+
+          if (!obj) { setPopup(null); return; }
+
           if (obj.cluster) {
             // zoom into cluster
             setViewState({ ...viewState, longitude: obj.position[0], latitude: obj.position[1], zoom: Math.min(((viewState as any).zoom || 5) + 2, 16) });
             setPopup(null);
-          } else if (obj.items && obj.items.length) {
+            return;
+          }
+
+          if (obj.items && obj.items.length) {
             // defensive: cluster-like
             setViewState({ ...viewState, longitude: obj.position[0], latitude: obj.position[1], zoom: Math.min(((viewState as any).zoom || 5) + 2, 16) });
             setPopup(null);
-          } else {
-            // single peak clicked
-            setPopup({ x: info.x, y: info.y, peak: obj });
-            if (onSelectPeak) onSelectPeak(obj);
+            return;
           }
+
+          // Single peak/object clicked. Compute screen coords if info.x/y missing.
+          let x = info.x;
+          let y = info.y;
+          if ((typeof x !== 'number' || typeof y !== 'number' || Number.isNaN(x) || Number.isNaN(y)) && obj.position && Array.isArray(obj.position)) {
+            try {
+              const vp = new WebMercatorViewport(viewState as any);
+              const p = vp.project([Number(obj.position[0]), Number(obj.position[1])]);
+              x = p[0]; y = p[1];
+            } catch (e) { /* ignore projection errors */ }
+          }
+
+          setPopup({ x, y, peak: obj });
+          if (onSelectPeak) onSelectPeak(obj);
         }}
         getTooltip={({ object }) => object && ('name' in object ? `${object.name}\n${object.distance} km` : object.type)}
       >

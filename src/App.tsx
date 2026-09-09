@@ -30,6 +30,8 @@ export default function App() {
   const [completedPeakIds, setCompletedPeakIds] = useState<Set<string>>(new Set());
   const [proximityMeters, setProximityMeters] = useState<number>(250);
   const [selectedPeak, setSelectedPeak] = useState<null | any>(null);
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
 
   // Map style: keep the default built into MapView (no user selection)
   const [colorByGroups, setColorByGroups] = useState<boolean>(false);
@@ -211,6 +213,10 @@ export default function App() {
           completedPeakIds={completedPeakIds}
           proximityMeters={proximityMeters}
           setProximityMeters={setProximityMeters}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          setDateFrom={setDateFrom}
+          setDateTo={setDateTo}
           colorByGroups={colorByGroups}
           setColorByGroups={setColorByGroups}
 
@@ -218,8 +224,16 @@ export default function App() {
         />
       </div>
       <div className="flex-1 relative">
+        {/* Filter activities by date range before passing to MapView */}
+        {(() => { })()}
         <MapView
-          activities={activities}
+          activities={activities.filter(a => {
+            if ((!dateFrom && !dateTo) || !a.date) return true;
+            const aDate = a.date.split('T')[0];
+            if (dateFrom && aDate < dateFrom) return false;
+            if (dateTo && aDate > dateTo) return false;
+            return true;
+          })}
           viewMode={viewMode}
           peaks={showPeaks ? peaksToShow : []}
           showPeaks={showPeaks}
