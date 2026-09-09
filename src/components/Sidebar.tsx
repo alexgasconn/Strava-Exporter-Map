@@ -34,6 +34,7 @@ interface SidebarProps {
   setColorByGroups: (v: boolean) => void;
   onSelectPeak?: (p: any) => void;
   skippedFiles?: { name: string; reason: string }[];
+  parseErrors?: { filename?: string; reason: string }[];
 }
 
 
@@ -204,6 +205,19 @@ export default function Sidebar({
               <summary className="cursor-pointer">Ver lista</summary>
               <ul className="mt-2 max-h-40 overflow-auto text-xs text-slate-200">
                 {skippedFiles.map((s, idx) => <li key={idx} className="py-0.5">{s.name} — {s.reason}</li>)}
+              </ul>
+            </details>
+          </div>
+        </div>
+      )}
+      {parseErrors && parseErrors.length > 0 && (
+        <div className="mt-4 bg-red-900/20 p-3 rounded">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-red-300 font-medium">Parse errors ({parseErrors.length})</div>
+            <details className="text-xs text-slate-300">
+              <summary className="cursor-pointer">Ver errores</summary>
+              <ul className="mt-2 max-h-40 overflow-auto text-xs text-slate-200">
+                {parseErrors.map((s, idx) => <li key={idx} className="py-0.5">{s.filename || 'unknown'} — {s.reason}</li>)}
               </ul>
             </details>
           </div>

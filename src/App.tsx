@@ -32,8 +32,8 @@ export default function App() {
   const [selectedPeak, setSelectedPeak] = useState<null | any>(null);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
-  const [skippedFiles, setSkippedFiles] = useState<{name:string,reason:string}[]>([]);
-  const [parseErrors, setParseErrors] = useState<{filename?:string,reason:string}[]>([]);
+  const [skippedFiles, setSkippedFiles] = useState<{ name: string, reason: string }[]>([]);
+  const [parseErrors, setParseErrors] = useState<{ filename?: string, reason: string }[]>([]);
 
   // Map style: keep the default built into MapView (no user selection)
   const [colorByGroups, setColorByGroups] = useState<boolean>(false);
@@ -229,6 +229,7 @@ export default function App() {
           colorByGroups={colorByGroups}
           setColorByGroups={setColorByGroups}
           skippedFiles={skippedFiles}
+          parseErrors={parseErrors}
 
           onSelectPeak={(p: any) => setSelectedPeak(p)}
         />

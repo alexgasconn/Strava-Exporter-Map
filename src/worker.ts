@@ -297,9 +297,18 @@ ctx.onmessage = async (event: MessageEvent) => {
 
 function parseGpx(data: Uint8Array, filename?: string): { path: [number, number][], type?: string } {
   const textRaw = fflate.strFromU8(data);
-  // sanitize: find first '<' in case of leading garbage (BOM, padding, multipart headers)
-  const firstLT = textRaw.indexOf('<');
-  const text = firstLT > 0 ? textRaw.slice(firstLT) : textRaw;
+  // sanitize: try to locate the XML prolog '<?xml' and slice everything before it;
+  // fallback to first '<' if not found. Also trim leading control/BOM characters.
+  const prologIndex = textRaw.toLowerCase().indexOf('<?xml');
+  let text = textRaw;
+  if (prologIndex >= 0) {
+    text = textRaw.slice(prologIndex);
+  } else {
+    const firstLT = textRaw.indexOf('<');
+    if (firstLT > 0) text = textRaw.slice(firstLT);
+  }
+  // remove leading BOM or non-printable chars
+  text = text.replace(/^[\u0000-\u001F\u007F\uFEFF]+/, '');
   try {
     const dom = new DOMParser().parseFromString(text, 'text/xml');
     const geo = gpx(dom);
@@ -319,8 +328,18 @@ function parseGpx(data: Uint8Array, filename?: string): { path: [number, number]
 
 function parseTcx(data: Uint8Array, filename?: string): { path: [number, number][], type?: string } {
   const textRaw = fflate.strFromU8(data);
-  const firstLT = textRaw.indexOf('<');
-  const text = firstLT > 0 ? textRaw.slice(firstLT) : textRaw;
+  // sanitize: try to locate the XML prolog '<?xml' and slice everything before it;
+  // fallback to first '<' if not found. Also trim leading control/BOM characters.
+  const prologIndex = textRaw.toLowerCase().indexOf('<?xml');
+  let text = textRaw;
+  if (prologIndex >= 0) {
+    text = textRaw.slice(prologIndex);
+  } else {
+    const firstLT = textRaw.indexOf('<');
+    if (firstLT > 0) text = textRaw.slice(firstLT);
+  }
+  // remove leading BOM or non-printable chars
+  text = text.replace(/^[\u0000-\u001F\u007F\uFEFF]+/, '');
   try {
     const dom = new DOMParser().parseFromString(text, 'text/xml');
     const geo = tcx(dom);
