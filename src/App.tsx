@@ -32,9 +32,8 @@ export default function App() {
   const [selectedPeak, setSelectedPeak] = useState<null | any>(null);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
-  const [skippedFiles, setSkippedFiles] = useState<{ name: string, reason: string }[]>([]);
-  const [parseErrors, setParseErrors] = useState<{ filename?: string, reason: string }[]>([]);
-  const [summary, setSummary] = useState<null | { total: number; ok: number; noTrack: number; gunzipFailed: number; unsupported: number; errored: number }>(null);
+  // do not store skipped files / parse errors / summary in UI state — log to console only
+  // state variables removed per user preference
 
   // Map style: keep the default built into MapView (no user selection)
   const [colorByGroups, setColorByGroups] = useState<boolean>(false);
@@ -59,9 +58,9 @@ export default function App() {
       } else if (type === 'DEBUG') {
         console.debug(message);
       } else if (type === 'SKIPPED_ENTRIES') {
-        if (Array.isArray(entries)) setSkippedFiles(entries);
+        if (Array.isArray(entries)) console.debug('Skipped entries:', entries);
       } else if (type === 'PARSE_ERROR') {
-        setParseErrors(prev => prev.concat({ filename, reason }));
+        // only log parse errors to console per user request
         console.error('Worker parse error', filename, reason);
       } else if (type === 'ACTIVITY_BATCH') {
         if (Array.isArray(batch) && batch.length > 0) {
@@ -99,7 +98,7 @@ export default function App() {
           }, 200);
         }
       } else if (type === 'SUMMARY') {
-        setSummary(stats || null);
+        console.log('Import summary', stats);
       } else if (type === 'DONE') {
         setLoading(false);
         setProgress(100);
@@ -231,9 +230,6 @@ export default function App() {
           setDateTo={setDateTo}
           colorByGroups={colorByGroups}
           setColorByGroups={setColorByGroups}
-          skippedFiles={skippedFiles}
-          parseErrors={parseErrors}
-          summary={summary}
 
           onSelectPeak={(p: any) => setSelectedPeak(p)}
         />
