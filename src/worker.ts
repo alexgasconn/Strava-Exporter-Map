@@ -49,23 +49,46 @@ ctx.onmessage = async (event: MessageEvent) => {
       ctx.postMessage({ type: 'PROGRESS', message: 'Extracting activities...', percent: 15 });
 
       // Use unzipSync because we are already in a worker, blocking is fine and avoids async weirdness
-      const unzipped = fflate.unzipSync(zipData, {
-        // Only accept activity files under the 'activities/' folder in the zip.
-        // This avoids picking up planned routes (usually under 'routes/').
-        filter: (file: any) => {
-          if (!file || !file.name) return false;
-          // Normalize path and check folder
-          const raw = file.name.replaceAll('\\\\', '/').replaceAll('\\', '/');
-          const name = raw.toLowerCase();
-          // skip directory entries
-          if (name.endsWith('/')) return false;
-          // ensure file is inside an activities/ folder at any level
-          if (!/(^|\/)activities\//.test(name)) return false;
-          return (name.endsWith('.gpx') || name.endsWith('.tcx') || name.endsWith('.fit') || name.endsWith('.gz'));
-        }
-      });
+      // Extract all entries first so we can log which files were filtered out.
+      const unzippedAll = fflate.unzipSync(zipData);
+      const allNames = Object.keys(unzippedAll);
+      const matched: string[] = [];
+      const skipped: { name: string, reason: string }[] = [];
 
-      const files = Object.keys(unzipped);
+      for (const rawName of allNames) {
+        const raw = rawName.replaceAll('\\\\', '/').replaceAll('\\', '/');
+        const name = raw.toLowerCase();
+        if (name.endsWith('/')) {
+          skipped.push({ name: rawName, reason: 'directory' });
+          continue;
+        }
+        const inActivities = /(^|\/)activities\//.test(name);
+        const isExt = (name.endsWith('.gpx') || name.endsWith('.tcx') || name.endsWith('.fit') || name.endsWith('.gz'));
+        if (!inActivities) {
+          skipped.push({ name: rawName, reason: 'not in activities/ folder' });
+          continue;
+        }
+        if (!isExt) {
+          skipped.push({ name: rawName, reason: 'unsupported extension' });
+          continue;
+        }
+        matched.push(rawName);
+      }
+
+      // Log summary of what's inside the zip and what's being processed
+      console.log('ZIP entries:', allNames.length, 'matched activities:', matched.length, 'skipped:', skipped.length);
+      ctx.postMessage({ type: 'PROGRESS', message: `ZIP contains ${allNames.length} entries; processing ${matched.length} activity files...`, percent: 15 });
+      if (skipped.length > 0) {
+        // send a short sample of skipped filenames to help debugging
+        const sample = skipped.slice(0, 20).map(s => `${s.name} (${s.reason})`);
+        ctx.postMessage({ type: 'DEBUG', message: `Skipped ${skipped.length} entries: ${sample.join(', ')}${skipped.length > 20 ? ', ...' : ''}` });
+      }
+
+      // Work with the matched subset
+      const files = matched;
+      // map file data from unzippedAll
+      const unzipped: Record<string, Uint8Array> = {};
+      for (const n of files) unzipped[n] = unzippedAll[n];
       if (files.length === 0) {
         ctx.postMessage({ type: 'ERROR', message: 'No activity files (gpx, tcx, fit) found in the zip.' });
         return;
@@ -81,6 +104,9 @@ ctx.onmessage = async (event: MessageEvent) => {
       for (let i = 0; i < totalRows; i++) {
         const filename = files[i];
         let fileData = unzipped[filename];
+        // debug: announce file being attempted
+        console.log(`Attempting to read: ${filename} (${i + 1}/${totalRows})`);
+        ctx.postMessage({ type: 'DEBUG', message: `Reading ${filename} (${i + 1}/${totalRows})` });
 
         // If it's gzipped (like .fit.gz, .gpx.gz)
         if (filename.toLowerCase().endsWith('.gz')) {
@@ -88,7 +114,8 @@ ctx.onmessage = async (event: MessageEvent) => {
             fileData = fflate.gunzipSync(fileData);
           } catch (e) {
             // skip if decompression fails
-            console.warn("Failed to gunzip", filename);
+            console.warn("Failed to gunzip", filename, e);
+            ctx.postMessage({ type: 'DEBUG', message: `Failed to gunzip ${filename}: ${String(e)}` });
           }
         }
 
