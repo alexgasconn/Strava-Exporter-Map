@@ -52,6 +52,12 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
           });
           break;
         }
+        // dynamic pin size based on current zoom so pins are visible without zooming
+        const pinSize = (d: any) => {
+          const z = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
+          const base = d.completed ? 26 : 22;
+          return Math.max(12, Math.round(base + (z - 5) * 2.2));
+        };
       }
     }
   }, [activities, viewState]);
@@ -63,7 +69,9 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
       // or a raw Peak from the JSON (has latitude/longitude). Handle both.
       let lon: number | null = null;
       let lat: number | null = null;
-      let popupPeak: any = null;
+      sizeUnits: 'pixels',
+        getSize: (d: any) => pinSize(d),
+          hitTolerance: 4,
       if ((selectedPeak as any).position && Array.isArray((selectedPeak as any).position)) {
         lon = Number((selectedPeak as any).position[0]);
         lat = Number((selectedPeak as any).position[1]);
@@ -420,6 +428,10 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
               x = p[0]; y = p[1];
             } catch (e) { /* ignore projection errors */ }
           }
+
+          // Ensure numeric values
+          if (typeof x !== 'number' || Number.isNaN(x)) x = 0;
+          if (typeof y !== 'number' || Number.isNaN(y)) y = 0;
 
           setPopup({ x, y, peak: obj });
           if (onSelectPeak) onSelectPeak(obj);
