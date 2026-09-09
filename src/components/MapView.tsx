@@ -189,16 +189,25 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
     // Flatten all points for heatmap
     const heatData = visibleActivities.flatMap(a => a.path.map(p => ({ position: p })));
 
+    // Heatmap tuned per user request: factor=1.133, rad=8, blur=14
+    // Deck.gl HeatmapLayer doesn't expose a direct 'blur' prop; we map:
+    // - factor -> weight multiplier
+    // - rad -> radiusPixels
+    // - blur -> approximate via threshold (higher blur -> higher threshold for visualization)
+    const HEAT_FACTOR = 1.133;
+    const HEAT_RAD = 8;
+    const HEAT_BLUR = 14; // mapped to threshold below
+
     layers.push(
       new HeatmapLayer({
         id: 'heatmap-layer',
         data: heatData,
         pickable: false,
         getPosition: d => d.position,
-        getWeight: d => 1,
-        radiusPixels: 15,
+        getWeight: d => 1 * HEAT_FACTOR,
+        radiusPixels: HEAT_RAD,
         intensity: 1,
-        threshold: 0.05
+        threshold: Math.min(0.95, Math.max(0.01, HEAT_BLUR / 100))
       })
     );
   }
