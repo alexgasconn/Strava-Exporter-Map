@@ -50,12 +50,17 @@ ctx.onmessage = async (event: MessageEvent) => {
 
       // Use unzipSync because we are already in a worker, blocking is fine and avoids async weirdness
       const unzipped = fflate.unzipSync(zipData, {
-        // Accept activity files in any folder inside the zip (not only 'activities/').
+        // Only accept activity files under the 'activities/' folder in the zip.
+        // This avoids picking up planned routes (usually under 'routes/').
         filter: (file) => {
           if (!file || !file.name) return false;
-          const name = file.name.toLowerCase();
+          // Normalize path and check folder
+          const raw = file.name.replaceAll('\\\\', '/').replaceAll('\\', '/');
+          const name = raw.toLowerCase();
           // skip directory entries
           if (name.endsWith('/')) return false;
+          // ensure file is inside an activities/ folder at any level
+          if (!/(^|/) activities\//.test(name)) return false;
           return (name.endsWith('.gpx') || name.endsWith('.tcx') || name.endsWith('.fit') || name.endsWith('.gz'));
         }
       });
