@@ -20,6 +20,7 @@ interface MapViewProps {
   mapStyleUrl?: string;
   colorByGroups?: boolean;
   selectedPeak?: any | null;
+  peakConquests?: Record<string, { activityId: string; name: string; date: string }>;
   onSelectPeak?: (p: any) => void;
 }
 
@@ -31,7 +32,7 @@ const INITIAL_VIEW_STATE = {
   bearing: 0
 };
 
-export default function MapView({ activities, viewMode, peaks, showPeaks = true, completedPeakIds, completedPeaks = [], mapStyleUrl, colorByGroups = false, selectedPeak = null, onSelectPeak }: MapViewProps) {
+export default function MapView({ activities, viewMode, peaks, showPeaks = true, completedPeakIds, completedPeaks = [], mapStyleUrl, colorByGroups = false, selectedPeak = null, peakConquests, onSelectPeak }: MapViewProps) {
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   // popup holds the geographic peak; its screen position is reprojected each render
   const [popup, setPopup] = useState<null | { peak: any }>(null);
@@ -79,7 +80,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   useEffect(() => {
     if (typeof (selectedPeak) !== 'undefined' && selectedPeak) {
       // selectedPeak may be either the internal singleItems object (has .position)
-      // or a raw Peak from the JSON (has latitude/longitude). Handle both.
+      // or a raw Peak from the JSON (lat/lon stored as strings). Handle both.
       let lon: number | null = null;
       let lat: number | null = null;
       let popupPeak: any = selectedPeak;
@@ -87,22 +88,29 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         lon = Number((selectedPeak as any).position[0]);
         lat = Number((selectedPeak as any).position[1]);
         popupPeak = selectedPeak;
-      } else if (typeof (selectedPeak as any).longitude === 'number' && typeof (selectedPeak as any).latitude === 'number') {
-        lon = Number((selectedPeak as any).longitude);
-        lat = Number((selectedPeak as any).latitude);
-        popupPeak = {
-          id: selectedPeak.id,
-          name: selectedPeak.name,
-          height: selectedPeak.height,
-          image: selectedPeak.image,
-          url: selectedPeak.url,
-          position: [lon, lat]
-        };
+      } else if ((selectedPeak as any).longitude !== undefined && (selectedPeak as any).latitude !== undefined) {
+        const parsedLon = Number((selectedPeak as any).longitude);
+        const parsedLat = Number((selectedPeak as any).latitude);
+        if (!Number.isNaN(parsedLon) && !Number.isNaN(parsedLat)) {
+          lon = parsedLon;
+          lat = parsedLat;
+          popupPeak = {
+            id: selectedPeak.id,
+            name: selectedPeak.name,
+            height: selectedPeak.height,
+            essencial: !!selectedPeak.essencial,
+            image: selectedPeak.image,
+            url: selectedPeak.url,
+            completed: completedPeakIds ? completedPeakIds.has(selectedPeak.id) : false,
+            position: [lon, lat]
+          };
+        }
       }
 
       if (lon !== null && lat !== null) {
-        setViewState(v => ({ ...v, longitude: lon as number, latitude: lat as number, zoom: Math.max((v as any).zoom, 12) }));
-        setPopup({ peak: popupPeak });
+        setViewState(v => ({ ...v, longitude: lon as number, latitude: lat as number, zoom: Math.max((v as any).zoom, 13) }));
+        const conquest = peakConquests?.[popupPeak.id];
+        setPopup({ peak: conquest ? { ...popupPeak, conquest } : popupPeak });
       }
     }
   }, [selectedPeak]);
@@ -450,7 +458,8 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
           }
 
           // Single peak/object clicked.
-          setPopup({ peak: obj });
+          const conquest = peakConquests?.[obj.id];
+          setPopup({ peak: conquest ? { ...obj, conquest } : obj });
           if (onSelectPeak) onSelectPeak(obj);
         }}
         getTooltip={({ object }) => object && ('name' in object ? `${object.name}\n${object.distance} km` : object.type)}
@@ -488,6 +497,17 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
                   {popup.peak.completed ? 'Completado' : 'Pendiente'}
                 </span>
               </div>
+              {popup.peak.conquest && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(148,163,184,0.15)' }}>
+                  <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Conquerit amb</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{popup.peak.conquest.name || 'Actividad'}</div>
+                  {popup.peak.conquest.date && (
+                    <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 1 }}>
+                      {new Date(popup.peak.conquest.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </div>
+                  )}
+                </div>
+              )}
               {popup.peak.url && <a href={popup.peak.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 10, color: '#fbbf24', fontSize: 13, fontWeight: 600 }}>Ver en FEEC →</a>}
             </div>
           </div>

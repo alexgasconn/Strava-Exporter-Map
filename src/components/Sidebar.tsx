@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
-import { Upload, Map as MapIcon, Target, Flame, Activity, Search, Mountain, CheckCircle2, MapPin } from 'lucide-react';
-import type { ViewMode, StravaActivity, Peak } from '../types';
+import { Upload, Activity, Mountain, CheckCircle2, Search, MapPin } from 'lucide-react';
+import type { StravaActivity, Peak } from '../types';
+
+const CHALLENGE_GOAL = 100;
 
 interface SidebarProps {
   onFileUpload: (file: File) => void;
@@ -8,8 +10,6 @@ interface SidebarProps {
   loading: boolean;
   progress: number;
   progressMsg: string;
-  viewMode: ViewMode;
-  setViewMode: (m: ViewMode) => void;
   // peaks props
   peaks: Peak[];
   showPeaks: boolean;
@@ -20,8 +20,6 @@ interface SidebarProps {
   setPeakSearch: (s: string) => void;
   completionFilter: 'all' | 'done' | 'todo';
   setCompletionFilter: (f: 'all' | 'done' | 'todo') => void;
-  visiblePeakIds: Set<string>;
-  setVisiblePeakIds: (s: Set<string>) => void;
   completedPeakIds: Set<string>;
   proximityMeters: number;
   setProximityMeters: (n: number) => void;
@@ -29,16 +27,13 @@ interface SidebarProps {
   dateTo: string;
   setDateFrom: (s: string) => void;
   setDateTo: (s: string) => void;
-  // removed skippedFiles/parseErrors/summary from props — these are logged to console only
-  colorByGroups: boolean;
-  setColorByGroups: (v: boolean) => void;
   onSelectPeak?: (p: any) => void;
 }
 
 
 export default function Sidebar({
-  onFileUpload, activities, loading, progress, progressMsg, viewMode, setViewMode,
-  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, dateFrom, dateTo, setDateFrom, setDateTo, colorByGroups, setColorByGroups, onSelectPeak
+  onFileUpload, activities, loading, progress, progressMsg,
+  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, completedPeakIds, proximityMeters, setProximityMeters, dateFrom, dateTo, setDateFrom, setDateTo, onSelectPeak
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);
@@ -102,7 +97,7 @@ export default function Sidebar({
 
   const totalPeaks = peaks.length;
   const donePeaks = peaks.filter(p => completedPeakIds.has(p.id)).length;
-  const donePct = totalPeaks ? Math.round((donePeaks / totalPeaks) * 100) : 0;
+  const goalPct = Math.round((Math.min(donePeaks, CHALLENGE_GOAL) / CHALLENGE_GOAL) * 100);
 
   return (
     <div className="h-full w-full max-h-screen overflow-y-auto bg-slate-900/95 text-slate-100 border-r border-slate-800/50 p-5 flex flex-col gap-5">
@@ -185,46 +180,15 @@ export default function Sidebar({
           <div className="text-2xl font-bold text-emerald-400 leading-none">{donePeaks}<span className="text-sm text-slate-500 font-medium">/{totalPeaks}</span></div>
         </div>
       </div>
-      {totalPeaks > 0 && (
-        <div className="-mt-2">
-          <div className="flex justify-between text-xs text-slate-400 mb-1">
-            <span>Progreso Repte 100 Cims</span>
-            <span className="font-medium text-slate-200">{donePct}%</span>
-          </div>
-          <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-            <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style={{ width: `${donePct}%` }}></div>
-          </div>
+      <div className="-mt-2">
+        <div className="flex justify-between text-xs text-slate-400 mb-1">
+          <span>Objectiu Repte 100 Cims</span>
+          <span className="font-medium text-slate-200">{Math.min(donePeaks, CHALLENGE_GOAL)}/{CHALLENGE_GOAL}</span>
         </div>
-      )}
-
-      {/* View mode */}
-      <div className="flex flex-col gap-2">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Modo de vista</h2>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => setViewMode('polylines')}
-            className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${viewMode === 'polylines' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-          >
-            <MapIcon className="w-5 h-5" />
-            <span className="text-xs font-medium">Rutas</span>
-          </button>
-          <button
-            onClick={() => setViewMode('heatmap')}
-            className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${viewMode === 'heatmap' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-          >
-            <Flame className="w-5 h-5" />
-            <span className="text-xs font-medium">Calor</span>
-          </button>
-          <button
-            onClick={() => setViewMode('endpoints')}
-            className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${viewMode === 'endpoints' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-          >
-            <Target className="w-5 h-5" />
-            <span className="text-xs font-medium">Extremos</span>
-          </button>
+        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+          <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style={{ width: `${goalPct}%` }}></div>
         </div>
       </div>
-
 
 
       <div className="flex flex-col gap-3">
@@ -292,32 +256,18 @@ export default function Sidebar({
           <input type="range" min={20} max={500} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} className="w-full accent-orange-500" />
         </div>
 
-        {/* Sort + select-all */}
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <div className="flex items-center gap-1">
-            <span>Ordenar:</span>
-            {([['name', 'Nombre'], ['height', 'Altura'], ['status', 'Estado']] as const).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => toggleSort(key)}
-                className={`px-1.5 py-0.5 rounded ${sortBy === key ? 'text-orange-300' : 'hover:text-slate-200'}`}
-              >
-                {label}{sortBy === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => {
-              const allVisible = sortedPeaks.every(p => visiblePeakIds.has(p.id));
-              const next = new Set(visiblePeakIds);
-              if (allVisible) sortedPeaks.forEach(p => next.delete(p.id));
-              else sortedPeaks.forEach(p => next.add(p.id));
-              setVisiblePeakIds(next);
-            }}
-            className="hover:text-slate-200 underline"
-          >
-            {sortedPeaks.every(p => visiblePeakIds.has(p.id)) ? 'Deseleccionar' : 'Seleccionar todos'}
-          </button>
+        {/* Sort */}
+        <div className="flex items-center gap-1 text-xs text-slate-400">
+          <span>Ordenar:</span>
+          {([['name', 'Nombre'], ['height', 'Altura'], ['status', 'Estado']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => toggleSort(key)}
+              className={`px-1.5 py-0.5 rounded ${sortBy === key ? 'text-orange-300' : 'hover:text-slate-200'}`}
+            >
+              {label}{sortBy === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+            </button>
+          ))}
         </div>
 
         {/* Peak list */}
@@ -326,7 +276,6 @@ export default function Sidebar({
             <div className="text-center text-sm text-slate-500 py-6">No hay cims que coincidan.</div>
           )}
           {sortedPeaks.map(p => {
-            const visible = visiblePeakIds.has(p.id);
             const done = completedPeakIds.has(p.id);
             return (
               <div
@@ -334,17 +283,6 @@ export default function Sidebar({
                 className={`group flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors cursor-pointer ${done ? 'hover:bg-emerald-500/10' : 'hover:bg-slate-800/60'}`}
                 onClick={() => onSelectPeak?.(p)}
               >
-                <input
-                  type="checkbox"
-                  checked={visible}
-                  onClick={e => e.stopPropagation()}
-                  onChange={() => {
-                    const next = new Set(visiblePeakIds);
-                    if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
-                    setVisiblePeakIds(next);
-                  }}
-                  className="accent-orange-500 shrink-0"
-                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium truncate group-hover:text-orange-300">{p.name}</span>

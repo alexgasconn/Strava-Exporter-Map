@@ -42,6 +42,8 @@ ctx.onmessage = async (event: MessageEvent) => {
       // recompute completions from all parsed activities with new radius
       const allCompleted = computeCompletedFromActivities(parsedActivities);
       ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(allCompleted) });
+      const conquests = computeConquestsFromActivities(parsedActivities);
+      ctx.postMessage({ type: 'PEAK_CONQUESTS', conquests: Object.fromEntries(conquests) });
     }
     return;
   }
@@ -249,6 +251,8 @@ ctx.onmessage = async (event: MessageEvent) => {
       if (workerPeaks && workerPeaks.length > 0) {
         const allCompleted = computeCompletedFromActivities(parsedActivities);
         ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(allCompleted) });
+        const conquests = computeConquestsFromActivities(parsedActivities);
+        ctx.postMessage({ type: 'PEAK_CONQUESTS', conquests: Object.fromEntries(conquests) });
       }
 
       console.log('Parse summary', stats);
@@ -360,6 +364,8 @@ ctx.onmessage = async (event: MessageEvent) => {
       if (workerPeaks && workerPeaks.length > 0) {
         const allCompleted = computeCompletedFromActivities(parsedActivities);
         ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(allCompleted) });
+        const conquests = computeConquestsFromActivities(parsedActivities);
+        ctx.postMessage({ type: 'PEAK_CONQUESTS', conquests: Object.fromEntries(conquests) });
       }
 
       ctx.postMessage({ type: 'DONE' });
@@ -653,6 +659,43 @@ function computePathDistance(path: [number, number][]) {
     d += haversine(Number(path[i - 1][0]), Number(path[i - 1][1]), Number(path[i][0]), Number(path[i][1]));
   }
   return d;
+}
+
+// tracks which activity first reached each peak, for display in the map popup
+function computeConquestsFromActivities(activities: StravaActivity[]) {
+  const conquests = new Map<string, { activityId: string; name: string; date: string }>();
+  if (!peakGrid || workerPeaks.length === 0) return conquests;
+
+  for (const act of activities) {
+    if (!act.path || act.path.length === 0) continue;
+    const sampleEvery = Math.max(1, Math.floor(act.path.length / 500));
+    for (let i = 0; i < act.path.length; i += sampleEvery) {
+      const pt = act.path[i];
+      const lon = Number(pt[0]);
+      const lat = Number(pt[1]);
+      if (Number.isNaN(lon) || Number.isNaN(lat)) continue;
+      const gx = Math.floor(lon / cellSizeDeg);
+      const gy = Math.floor(lat / cellSizeDeg);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const key = (gx + dx) + ':' + (gy + dy);
+          const bucket = peakGrid.get(key);
+          if (!bucket) continue;
+          for (const peak of bucket) {
+            const d = haversine(lon, lat, Number(peak.longitude), Number(peak.latitude));
+            if (d <= proximityMeters) {
+              const existing = conquests.get(peak.id);
+              if (!existing || (act.date && (!existing.date || act.date < existing.date))) {
+                conquests.set(peak.id, { activityId: act.id, name: act.name, date: act.date });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return conquests;
 }
 
 function computeCompletedFromActivities(activities: StravaActivity[]) {

@@ -10,12 +10,14 @@ import type { StravaActivity, ViewMode, Peak } from './types';
 import peaksData from '../muntanyesRepte100CimsFEEC.json';
 import Worker from './worker?worker';
 
+// Only the routes view is used; kept as a constant in case other modes return.
+const VIEW_MODE: ViewMode = 'polylines';
+
 export default function App() {
   const [activities, setActivities] = useState<StravaActivity[]>([]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('polylines');
 
   // no activity-type filtering: show all activities
 
@@ -25,9 +27,10 @@ export default function App() {
   const [onlyEssential, setOnlyEssential] = useState(false);
   const [peakSearch, setPeakSearch] = useState('');
   const [completionFilter, setCompletionFilter] = useState<'all' | 'done' | 'todo'>('all');
-  const [visiblePeakIds, setVisiblePeakIds] = useState<Set<string>>(new Set());
   // computed set of completed peaks (automatic, from activities)
   const [completedPeakIds, setCompletedPeakIds] = useState<Set<string>>(new Set());
+  // activity (name/date) that first conquered each peak, keyed by peak id
+  const [peakConquests, setPeakConquests] = useState<Record<string, { activityId: string; name: string; date: string }>>({});
   const [proximityMeters, setProximityMeters] = useState<number>(250);
   const [selectedPeak, setSelectedPeak] = useState<null | any>(null);
   const [dateFrom, setDateFrom] = useState<string>('');
@@ -50,7 +53,7 @@ export default function App() {
     workerRef.current = new Worker();
 
     workerRef.current.onmessage = (e) => {
-      const { type, message, percent, activities: batch, completedIds, entries, filename, reason, stats } = e.data;
+      const { type, message, percent, activities: batch, completedIds, entries, filename, reason, stats, conquests } = e.data;
 
       if (type === 'PROGRESS') {
         setProgressMsg(message);
@@ -97,6 +100,8 @@ export default function App() {
             completedTimerRef.current = null;
           }, 200);
         }
+      } else if (type === 'PEAK_CONQUESTS') {
+        if (conquests) setPeakConquests(conquests);
       } else if (type === 'SUMMARY') {
         console.log('Import summary', stats);
       } else if (type === 'DONE') {
@@ -130,13 +135,6 @@ export default function App() {
     window.addEventListener('app-files-selected', handler as EventListener);
     return () => window.removeEventListener('app-files-selected', handler as EventListener);
   }, []);
-
-  // initialize visiblePeakIds only when user chooses to show peaks
-  useEffect(() => {
-    if (showPeaks && allPeaks.length > 0 && visiblePeakIds.size === 0) {
-      setVisiblePeakIds(new Set(allPeaks.map(p => p.id)));
-    }
-  }, [showPeaks, allPeaks]);
 
   // Proximity changes are handled by worker; notify it so it recomputes there
   useEffect(() => {
@@ -188,7 +186,6 @@ export default function App() {
 
   // compute peaks to show based on filters
   const peaksToShow = allPeaks.filter(p => {
-    if (!visiblePeakIds.has(p.id)) return false;
     if (onlyEssential && !p.essencial) return false;
     if (peakSearch && !p.name.toLowerCase().includes(peakSearch.toLowerCase())) return false;
     if (completionFilter === 'done' && !completedPeakIds.has(p.id)) return false;
@@ -200,15 +197,13 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-950 font-sans">
-      <div className="border-r border-slate-800/60" style={{ width: '30%' }}>
+      <div className="border-r border-slate-800/60" style={{ width: 'clamp(360px, 28%, 460px)' }}>
         <Sidebar
           onFileUpload={handleFileUpload}
           activities={activities}
           loading={loading}
           progress={progress}
           progressMsg={progressMsg}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
 
           peaks={allPeaks}
           showPeaks={showPeaks}
@@ -219,8 +214,6 @@ export default function App() {
           setPeakSearch={setPeakSearch}
           completionFilter={completionFilter}
           setCompletionFilter={setCompletionFilter}
-          visiblePeakIds={visiblePeakIds}
-          setVisiblePeakIds={setVisiblePeakIds}
           completedPeakIds={completedPeakIds}
           proximityMeters={proximityMeters}
           setProximityMeters={setProximityMeters}
@@ -228,8 +221,6 @@ export default function App() {
           dateTo={dateTo}
           setDateFrom={setDateFrom}
           setDateTo={setDateTo}
-          colorByGroups={colorByGroups}
-          setColorByGroups={setColorByGroups}
 
           onSelectPeak={(p: any) => setSelectedPeak(p)}
         />
@@ -243,13 +234,14 @@ export default function App() {
             if (dateTo && aDate > dateTo) return false;
             return true;
           })}
-          viewMode={viewMode}
+          viewMode={VIEW_MODE}
           peaks={showPeaks ? peaksToShow : []}
           showPeaks={showPeaks}
           completedPeakIds={completedPeakIds}
           completedPeaks={completedPeaks}
           colorByGroups={colorByGroups}
           selectedPeak={selectedPeak}
+          peakConquests={peakConquests}
           onSelectPeak={(p: any) => setSelectedPeak(p)}
         />
       </div>
