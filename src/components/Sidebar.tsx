@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
-import { Upload, Map as MapIcon, Target, Flame, Activity, Search } from 'lucide-react';
+import { Upload, Map as MapIcon, Target, Flame, Activity, Search, Mountain, CheckCircle2, MapPin } from 'lucide-react';
 import type { ViewMode, StravaActivity, Peak } from '../types';
-import { ACTIVITY_COLORS } from '../types';
 
 interface SidebarProps {
   onFileUpload: (file: File) => void;
@@ -101,27 +100,36 @@ export default function Sidebar({
     return 0;
   });
 
+  const totalPeaks = peaks.length;
+  const donePeaks = peaks.filter(p => completedPeakIds.has(p.id)).length;
+  const donePct = totalPeaks ? Math.round((donePeaks / totalPeaks) * 100) : 0;
+
   return (
-    <div className="h-full w-full max-h-screen overflow-y-auto bg-slate-900/95 text-slate-100 border-r border-slate-800/50 p-6 flex flex-col gap-6">
+    <div className="h-full w-full max-h-screen overflow-y-auto bg-slate-900/95 text-slate-100 border-r border-slate-800/50 p-5 flex flex-col gap-5">
 
       <div className="flex items-center gap-3">
-        <Activity className="w-8 h-8 text-orange-500" />
-        <h1 className="text-xl font-bold tracking-tight">Strava Explorer</h1>
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+          <Activity className="w-6 h-6 text-white" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold tracking-tight leading-none">Strava Explorer</h1>
+          <p className="text-xs text-slate-400 mt-0.5">Repte 100 Cims · FEEC</p>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
         <button
           onClick={handleUploadClick}
           disabled={loading}
-          className="w-full bg-orange-600 hover:bg-orange-500 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-orange-600 hover:bg-orange-500 text-white font-medium py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Upload className="w-5 h-5" />
-          {loading ? 'Parsing...' : 'Upload Strava Export (.zip)'}
+          <Upload className="w-4 h-4" />
+          {loading ? 'Parsing…' : 'Importar export (.zip)'}
         </button>
         <button
           onClick={handleMultiClick}
           disabled={loading}
-          className="ml-2 bg-slate-800/50 hover:bg-slate-800 text-slate-200 font-medium py-3 px-3 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-sm font-medium py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Cargar archivos (.gpx/.fit)
         </button>
@@ -150,9 +158,9 @@ export default function Sidebar({
         />
 
         {loading && (
-          <div className="mt-2 text-sm text-slate-400">
+          <div className="mt-1 text-sm text-slate-400">
             <div className="flex justify-between mb-1">
-              <span>{progressMsg}</span>
+              <span className="truncate pr-2">{progressMsg}</span>
               <span>{progress}%</span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-1.5">
@@ -160,127 +168,198 @@ export default function Sidebar({
             </div>
           </div>
         )}
-
-        {!loading && activities.length > 0 && (
-          <div className="mt-2 text-sm text-slate-300 flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-            <span>Activities Loaded:</span>
-            <span className="font-bold text-orange-400">{activities.length}</span>
-          </div>
-        )}
       </div>
 
-      {/* Top: View/Map Configuration */}
-      <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">View Mode</h2>
+      {/* Stats overview */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+            <Activity className="w-3.5 h-3.5" /> Actividades
+          </div>
+          <div className="text-2xl font-bold text-orange-400 leading-none">{activities.length}</div>
+        </div>
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+            <Mountain className="w-3.5 h-3.5" /> Cims fets
+          </div>
+          <div className="text-2xl font-bold text-emerald-400 leading-none">{donePeaks}<span className="text-sm text-slate-500 font-medium">/{totalPeaks}</span></div>
+        </div>
+      </div>
+      {totalPeaks > 0 && (
+        <div className="-mt-2">
+          <div className="flex justify-between text-xs text-slate-400 mb-1">
+            <span>Progreso Repte 100 Cims</span>
+            <span className="font-medium text-slate-200">{donePct}%</span>
+          </div>
+          <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style={{ width: `${donePct}%` }}></div>
+          </div>
+        </div>
+      )}
+
+      {/* View mode */}
+      <div className="flex flex-col gap-2">
+        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Modo de vista</h2>
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => setViewMode('polylines')}
-            className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${viewMode === 'polylines' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+            className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${viewMode === 'polylines' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
           >
             <MapIcon className="w-5 h-5" />
-            <span className="text-xs font-medium">Lines</span>
+            <span className="text-xs font-medium">Rutas</span>
           </button>
           <button
             onClick={() => setViewMode('heatmap')}
-            className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${viewMode === 'heatmap' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+            className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${viewMode === 'heatmap' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
           >
             <Flame className="w-5 h-5" />
-            <span className="text-xs font-medium">Heat</span>
+            <span className="text-xs font-medium">Calor</span>
           </button>
           <button
             onClick={() => setViewMode('endpoints')}
-            className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${viewMode === 'endpoints' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+            className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${viewMode === 'endpoints' ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
           >
             <Target className="w-5 h-5" />
-            <span className="text-xs font-medium">Ends</span>
+            <span className="text-xs font-medium">Extremos</span>
           </button>
         </div>
       </div>
-      {/* Skipped entries, parse errors and import summary removed from UI — logged to console only */}
 
 
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Peaks DB</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Mountain className="w-3.5 h-3.5" /> Cims ({sortedPeaks.length})
+          </h2>
+        </div>
+
+        {/* Toggles */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setShowPeaks(!showPeaks)}
+            className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${showPeaks ? 'bg-orange-500/20 border-orange-500 text-orange-300' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+          >
+            <MapPin className="w-3.5 h-3.5" /> {showPeaks ? 'Visibles' : 'Ocultos'}
+          </button>
+          <button
+            onClick={() => setOnlyEssential(!onlyEssential)}
+            className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${onlyEssential ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+          >
+            ★ Solo esenciales
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3">
+          <Search className="w-4 h-4 text-slate-500 shrink-0" />
+          <input value={peakSearch} onChange={e => setPeakSearch(e.target.value)} placeholder="Buscar cim…" className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-slate-500" />
+        </div>
+
+        {/* Completion filter chips */}
+        <div className="grid grid-cols-3 gap-1.5 bg-slate-800/40 p-1 rounded-lg">
+          {([['all', 'Todos'], ['done', 'Fets'], ['todo', 'Pendientes']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setCompletionFilter(key)}
+              className={`text-xs font-medium py-1.5 rounded-md transition-all ${completionFilter === key ? 'bg-orange-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Comarca + date filters */}
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={showPeaks} onChange={e => setShowPeaks(e.target.checked)} />
-            <span className="text-sm ml-1">Mostrar picos en mapa</span>
+          <select value={comarcaFilter} onChange={e => setComarcaFilter(e.target.value)} className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2 py-1.5 text-sm outline-none">
+            <option value="all">Todas las comarcas</option>
+            {comarcaOptions.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2 py-1.5 outline-none" />
+          <span className="text-slate-500">→</span>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2 py-1.5 outline-none" />
+          {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-slate-400 hover:text-slate-200">✕</button>}
+        </div>
+
+        {/* Proximity slider */}
+        <div className="flex flex-col gap-1.5">
+          <label className="flex justify-between text-xs text-slate-400">
+            <span>Umbral de proximidad</span>
+            <span className="font-medium text-slate-200">{proximityMeters} m</span>
           </label>
-          <label className="flex items-center gap-2 ml-4">
-            <input type="checkbox" checked={onlyEssential} onChange={e => setOnlyEssential(e.target.checked)} />
-            <span className="text-sm ml-1">Solo esenciales</span>
-          </label>
+          <input type="range" min={20} max={500} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} className="w-full accent-orange-500" />
         </div>
 
-        <div className="mt-3 flex gap-2 items-center">
-          <label className="text-sm text-slate-300">Desde</label>
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-slate-800/20 p-1 rounded" />
-          <label className="text-sm text-slate-300">Hasta</label>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-slate-800/20 p-1 rounded" />
-          <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="ml-auto text-sm text-slate-400 hover:underline">Limpiar</button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Search className="w-4 h-4" />
-          <input value={peakSearch} onChange={e => setPeakSearch(e.target.value)} placeholder="Buscar pico" className="w-full bg-slate-800/20 p-2 rounded-md text-sm" />
-        </div>
-
-        <div className="flex gap-2 items-center">
-          <div className="flex gap-1">
-            <button onClick={() => setCompletionFilter('all')} className={`p-2 rounded-md ${completionFilter === 'all' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Todos</button>
-            <button onClick={() => setCompletionFilter('done')} className={`p-2 rounded-md ${completionFilter === 'done' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Completados</button>
-            <button onClick={() => setCompletionFilter('todo')} className={`p-2 rounded-md ${completionFilter === 'todo' ? 'bg-orange-500' : 'bg-slate-800/30'}`}>Pendientes</button>
+        {/* Sort + select-all */}
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <div className="flex items-center gap-1">
+            <span>Ordenar:</span>
+            {([['name', 'Nombre'], ['height', 'Altura'], ['status', 'Estado']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => toggleSort(key)}
+                className={`px-1.5 py-0.5 rounded ${sortBy === key ? 'text-orange-300' : 'hover:text-slate-200'}`}
+              >
+                {label}{sortBy === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+              </button>
+            ))}
           </div>
-          <div className="ml-auto flex items-center gap-2 text-sm">
-            <label>Comarca:</label>
-            <select value={comarcaFilter} onChange={e => setComarcaFilter(e.target.value)} className="bg-slate-800/30 p-1 rounded">
-              <option value="all">Todas</option>
-              {comarcaOptions.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
+          <button
+            onClick={() => {
+              const allVisible = sortedPeaks.every(p => visiblePeakIds.has(p.id));
+              const next = new Set(visiblePeakIds);
+              if (allVisible) sortedPeaks.forEach(p => next.delete(p.id));
+              else sortedPeaks.forEach(p => next.add(p.id));
+              setVisiblePeakIds(next);
+            }}
+            className="hover:text-slate-200 underline"
+          >
+            {sortedPeaks.every(p => visiblePeakIds.has(p.id)) ? 'Deseleccionar' : 'Seleccionar todos'}
+          </button>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm">Umbral de proximidad: <span className="font-medium">{proximityMeters} m</span></label>
-          <input type="range" min={20} max={500} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} />
-        </div>
-
-        <div className="mt-2">
-          <table className="w-full text-sm">
-            <thead className="text-slate-400 text-xs">
-              <tr>
-                <th className="text-left">&nbsp;</th>
-                <th onClick={() => toggleSort('name')} className="cursor-pointer">Pico {sortBy === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-                <th onClick={() => toggleSort('height')} className="cursor-pointer">Alt {sortBy === 'height' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-                <th onClick={() => toggleSort('comarca')} className="cursor-pointer">Comarca {sortBy === 'comarca' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-                <th onClick={() => toggleSort('essencial')} className="cursor-pointer">Ess {sortBy === 'essencial' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-                <th onClick={() => toggleSort('status')} className="cursor-pointer">Estado {sortBy === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedPeaks.map(p => {
-                const visible = visiblePeakIds.has(p.id);
-                const done = completedPeakIds.has(p.id);
-                return (
-                  <tr key={p.id} className="hover:bg-slate-800/30">
-                    <td className="py-1">
-                      <input type="checkbox" checked={visible} onChange={() => {
-                        const next = new Set(visiblePeakIds);
-                        if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
-                        setVisiblePeakIds(next);
-                      }} />
-                    </td>
-                    <td className="py-1"><button onClick={() => onSelectPeak?.(p)} className="text-left w-full text-sm hover:underline">{p.name}</button></td>
-                    <td className="text-xs text-slate-400">{p.height}</td>
-                    <td className="text-xs">{p.region || '—'}</td>
-                    <td className="text-xs">{p.essencial ? 'Sí' : '—'}</td>
-                    <td className="text-xs font-medium text-right">{done ? <span className="text-emerald-400">Completado</span> : <span className="text-slate-400">Pendiente</span>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        {/* Peak list */}
+        <div className="flex flex-col gap-1 -mx-1">
+          {sortedPeaks.length === 0 && (
+            <div className="text-center text-sm text-slate-500 py-6">No hay cims que coincidan.</div>
+          )}
+          {sortedPeaks.map(p => {
+            const visible = visiblePeakIds.has(p.id);
+            const done = completedPeakIds.has(p.id);
+            return (
+              <div
+                key={p.id}
+                className={`group flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors cursor-pointer ${done ? 'hover:bg-emerald-500/10' : 'hover:bg-slate-800/60'}`}
+                onClick={() => onSelectPeak?.(p)}
+              >
+                <input
+                  type="checkbox"
+                  checked={visible}
+                  onClick={e => e.stopPropagation()}
+                  onChange={() => {
+                    const next = new Set(visiblePeakIds);
+                    if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                    setVisiblePeakIds(next);
+                  }}
+                  className="accent-orange-500 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium truncate group-hover:text-orange-300">{p.name}</span>
+                    {p.essencial && <span className="text-amber-400 text-xs shrink-0">★</span>}
+                  </div>
+                  <div className="text-xs text-slate-500 truncate">
+                    {p.height ? `${p.height} m` : ''}{p.height && p.region ? ' · ' : ''}{p.region || ''}
+                  </div>
+                </div>
+                {done
+                  ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  : <span className="w-4 h-4 rounded-full border border-slate-600 shrink-0" />}
+              </div>
+            );
+          })}
         </div>
       </div>
 

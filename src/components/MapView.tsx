@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Map from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
 import { WebMercatorViewport } from '@deck.gl/core';
@@ -33,7 +33,20 @@ const INITIAL_VIEW_STATE = {
 
 export default function MapView({ activities, viewMode, peaks, showPeaks = true, completedPeakIds, completedPeaks = [], mapStyleUrl, colorByGroups = false, selectedPeak = null, onSelectPeak }: MapViewProps) {
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-  const [popup, setPopup] = useState<null | { x?: number; y?: number; peak: any }>(null);
+  // popup holds the geographic peak; its screen position is reprojected each render
+  const [popup, setPopup] = useState<null | { peak: any }>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setDimensions({ width: el.clientWidth || 800, height: el.clientHeight || 600 });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // CARTO raster tiles (user-provided key)
   const CARTO_RASTER_KEY = 'cb1_2hl3_1_c4dfd0f0c288bbb5cd981bed';
@@ -88,7 +101,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
       }
 
       if (lon !== null && lat !== null) {
-        setViewState(v => ({ ...v, longitude: lon as number, latitude: lat as number, zoom: Math.max((v as any).zoom, 10) }));
+        setViewState(v => ({ ...v, longitude: lon as number, latitude: lat as number, zoom: Math.max((v as any).zoom, 12) }));
         setPopup({ peak: popupPeak });
       }
     }
@@ -369,7 +382,14 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
             iconMapping: atlas.mapping,
             getIcon: (d: any) => d.completed ? 'pin-completed' : 'pin-default',
             sizeScale: 1,
-            getSize: () => 10,
+            sizeUnits: 'pixels',
+            sizeMinPixels: 22,
+            sizeMaxPixels: 56,
+            getSize: (d: any) => {
+              const z = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
+              const base = d.completed ? 34 : 30;
+              return Math.max(22, Math.round(base + (z - 6) * 2));
+            },
             getPosition: (d: any) => d.position
           })
         );
@@ -382,8 +402,19 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   // but to auto-center we'd need to compute bounding box. 
   // For simplicity we just start at default and let user pan.
 
+  // Reproject the popup peak to screen coordinates every render so it stays
+  // anchored to its geographic location while panning/zooming.
+  let popupScreen: [number, number] | null = null;
+  if (popup && popup.peak && Array.isArray(popup.peak.position)) {
+    try {
+      const vp = new WebMercatorViewport({ ...(viewState as any), width: dimensions.width, height: dimensions.height });
+      const p = vp.project([Number(popup.peak.position[0]), Number(popup.peak.position[1])]);
+      popupScreen = [p[0], p[1]];
+    } catch (e) { /* ignore projection errors */ }
+  }
+
   return (
-    <div className="w-full h-full relative">
+    <div ref={containerRef} className="w-full h-full relative">
       <DeckGL
         viewState={viewState as any}
         onViewStateChange={({ viewState }) => setViewState(viewState as typeof INITIAL_VIEW_STATE)}
@@ -418,22 +449,8 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
             return;
           }
 
-          // Single peak/object clicked. Compute screen coords if info.x/y missing.
-          let x = info.x;
-          let y = info.y;
-          if ((typeof x !== 'number' || typeof y !== 'number' || Number.isNaN(x) || Number.isNaN(y)) && obj.position && Array.isArray(obj.position)) {
-            try {
-              const vp = new WebMercatorViewport(viewState as any);
-              const p = vp.project([Number(obj.position[0]), Number(obj.position[1])]);
-              x = p[0]; y = p[1];
-            } catch (e) { /* ignore projection errors */ }
-          }
-
-          // Ensure numeric values
-          if (typeof x !== 'number' || Number.isNaN(x)) x = 0;
-          if (typeof y !== 'number' || Number.isNaN(y)) y = 0;
-
-          setPopup({ x, y, peak: obj });
+          // Single peak/object clicked.
+          setPopup({ peak: obj });
           if (onSelectPeak) onSelectPeak(obj);
         }}
         getTooltip={({ object }) => object && ('name' in object ? `${object.name}\n${object.distance} km` : object.type)}
@@ -441,19 +458,43 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         <Map
           mapStyle={mapStyleUrl || 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'}
         />
-        {popup && popup.peak && (
-          <div style={{ position: 'absolute', left: popup.x, top: popup.y, transform: 'translate(-50%, -110%)', zIndex: 1000 }}>
-            <div style={{ minWidth: 220, background: 'rgba(10,12,16,0.95)', color: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 6px 18px rgba(0,0,0,0.6)' }}>
-              {popup.peak.image && <img src={popup.peak.image} alt={popup.peak.name} style={{ width: '100%', height: 120, objectFit: 'cover' }} />}
-              <div style={{ padding: 8 }}>
-                <div style={{ fontWeight: 700 }}>{popup.peak.name}</div>
-                {popup.peak.height && <div style={{ fontSize: 12, color: '#cbd5e1' }}>{popup.peak.height} m</div>}
-                {popup.peak.url && <a href={popup.peak.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 6, color: '#fbbf24', fontSize: 13 }}>Ver en FEEC</a>}
+      </DeckGL>
+      {popup && popup.peak && popupScreen && (
+        <div
+          style={{
+            position: 'absolute',
+            left: popupScreen[0],
+            top: popupScreen[1],
+            transform: 'translate(-50%, calc(-100% - 14px))',
+            zIndex: 1000,
+            pointerEvents: 'auto'
+          }}
+        >
+          <div style={{ minWidth: 220, maxWidth: 260, background: 'rgba(15,18,24,0.97)', color: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.55)', border: '1px solid rgba(148,163,184,0.2)' }}>
+            {popup.peak.image && <img src={popup.peak.image} alt={popup.peak.name} style={{ width: '100%', height: 120, objectFit: 'cover' }} />}
+            <div style={{ padding: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>{popup.peak.name}</div>
+                <button
+                  onClick={() => setPopup(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}
+                  aria-label="Cerrar"
+                >×</button>
               </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                {popup.peak.height && <span style={{ fontSize: 12, background: 'rgba(51,65,85,0.6)', padding: '2px 8px', borderRadius: 999 }}>{popup.peak.height} m</span>}
+                {popup.peak.essencial && <span style={{ fontSize: 12, background: 'rgba(234,179,8,0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: 999 }}>Essencial</span>}
+                <span style={{ fontSize: 12, background: popup.peak.completed ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.15)', color: popup.peak.completed ? '#4ade80' : '#cbd5e1', padding: '2px 8px', borderRadius: 999 }}>
+                  {popup.peak.completed ? 'Completado' : 'Pendiente'}
+                </span>
+              </div>
+              {popup.peak.url && <a href={popup.peak.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 10, color: '#fbbf24', fontSize: 13, fontWeight: 600 }}>Ver en FEEC →</a>}
             </div>
           </div>
-        )}
-      </DeckGL>
+          {/* pointer */}
+          <div style={{ position: 'absolute', left: '50%', bottom: -8, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderTop: '8px solid rgba(15,18,24,0.97)' }} />
+        </div>
+      )}
     </div>
   );
 }
