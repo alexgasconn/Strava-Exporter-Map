@@ -125,11 +125,11 @@ ctx.onmessage = async (event: MessageEvent) => {
 
         try {
           if (baseName.endsWith('.gpx')) {
-            const res = parseGpx(fileData);
+            const res = parseGpx(fileData, filename);
             path = res.path;
             if (res.type) activityType = res.type;
           } else if (baseName.endsWith('.tcx')) {
-            const res = parseTcx(fileData);
+            const res = parseTcx(fileData, filename);
             path = res.path;
             if (res.type) activityType = res.type;
           } else if (baseName.endsWith('.fit')) {
@@ -138,8 +138,8 @@ ctx.onmessage = async (event: MessageEvent) => {
             if (res.type) activityType = res.type;
           }
         } catch (e) {
-          // silently ignore parsing errors for individual files to continue
-          console.warn("Failed to parse", filename, e);
+          console.error('Failed to parse', filename, e);
+          ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: String(e) });
         }
 
         if (path && path.length > 0) {
@@ -231,11 +231,11 @@ ctx.onmessage = async (event: MessageEvent) => {
 
         try {
           if (baseName.endsWith('.gpx')) {
-            const res = parseGpx(fileData);
+            const res = parseGpx(fileData, filename);
             path = res.path;
             if (res.type) activityType = res.type;
           } else if (baseName.endsWith('.tcx')) {
-            const res = parseTcx(fileData);
+            const res = parseTcx(fileData, filename);
             path = res.path;
             if (res.type) activityType = res.type;
           } else if (baseName.endsWith('.fit')) {
@@ -244,7 +244,8 @@ ctx.onmessage = async (event: MessageEvent) => {
             if (res.type) activityType = res.type;
           }
         } catch (e) {
-          console.warn('Failed to parse', filename, e);
+          console.error('Failed to parse', filename, e);
+          ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: String(e) });
         }
 
         if (path && path.length > 0) {
@@ -292,18 +293,47 @@ ctx.onmessage = async (event: MessageEvent) => {
   }
 };
 
-function parseGpx(data: Uint8Array): { path: [number, number][], type?: string } {
-  const text = fflate.strFromU8(data);
-  const dom = new DOMParser().parseFromString(text, 'text/xml');
-  const geo = gpx(dom);
-  return extractPathAndTypeFromGeoJSON(geo);
+function parseGpx(data: Uint8Array, filename?: string): { path: [number, number][], type?: string } {
+  const textRaw = fflate.strFromU8(data);
+  // sanitize: find first '<' in case of leading garbage (BOM, padding, multipart headers)
+  const firstLT = textRaw.indexOf('<');
+  const text = firstLT > 0 ? textRaw.slice(firstLT) : textRaw;
+  try {
+    const dom = new DOMParser().parseFromString(text, 'text/xml');
+    const geo = gpx(dom);
+    const res = extractPathAndTypeFromGeoJSON(geo);
+    if (!res.path || res.path.length === 0) {
+      const msg = `No GPX track found in ${filename || 'uploaded file'}`;
+      console.error(msg);
+      ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: msg });
+    }
+    return res;
+  } catch (e) {
+    console.error('GPX parse error', filename, e);
+    ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: String(e) });
+    return { path: [] };
+  }
 }
 
-function parseTcx(data: Uint8Array): { path: [number, number][], type?: string } {
-  const text = fflate.strFromU8(data);
-  const dom = new DOMParser().parseFromString(text, 'text/xml');
-  const geo = tcx(dom);
-  return extractPathAndTypeFromGeoJSON(geo);
+function parseTcx(data: Uint8Array, filename?: string): { path: [number, number][], type?: string } {
+  const textRaw = fflate.strFromU8(data);
+  const firstLT = textRaw.indexOf('<');
+  const text = firstLT > 0 ? textRaw.slice(firstLT) : textRaw;
+  try {
+    const dom = new DOMParser().parseFromString(text, 'text/xml');
+    const geo = tcx(dom);
+    const res = extractPathAndTypeFromGeoJSON(geo);
+    if (!res.path || res.path.length === 0) {
+      const msg = `No TCX track found in ${filename || 'uploaded file'}`;
+      console.error(msg);
+      ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: msg });
+    }
+    return res;
+  } catch (e) {
+    console.error('TCX parse error', filename, e);
+    ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: String(e) });
+    return { path: [] };
+  }
 }
 
 function extractPathAndTypeFromGeoJSON(geo: any): { path: [number, number][], type?: string } {
