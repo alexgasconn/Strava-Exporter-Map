@@ -254,11 +254,6 @@ ctx.onmessage = async (event: MessageEvent) => {
         // flush batch periodically
         if (batch.length >= batchSize) {
           ctx.postMessage({ type: 'ACTIVITY_BATCH', activities: batch });
-          // also compute completed peaks from this batch incrementally
-          if (workerPeaks && workerPeaks.length > 0) {
-            const completed = computeCompletedFromActivities(batch);
-            ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(completed) });
-          }
           batch = [];
         }
 
@@ -269,18 +264,24 @@ ctx.onmessage = async (event: MessageEvent) => {
       // send remaining
       if (batch.length > 0) {
         ctx.postMessage({ type: 'ACTIVITY_BATCH', activities: batch });
-        if (workerPeaks && workerPeaks.length > 0) {
-          const completed = computeCompletedFromActivities(batch);
-          ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(completed) });
-        }
       }
 
-      // final full recompute from everything parsed so far (in case proximity/peaks were set after some batches)
+      // final full recompute once, after all activities are parsed.
+      // Doing this per batch was the real bottleneck with large Strava exports.
       if (workerPeaks && workerPeaks.length > 0) {
+        const completedStart = performance.now();
         const allCompleted = computeCompletedFromActivities(parsedActivities);
-        ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(allCompleted) });
+        const conquestStart = performance.now();
         const conquests = computeConquestsFromActivities(parsedActivities);
+        const doneAt = performance.now();
+        ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(allCompleted) });
         ctx.postMessage({ type: 'PEAK_CONQUESTS', conquests: Object.fromEntries(conquests) });
+        console.log('Peak scan summary', {
+          activities: parsedActivities.length,
+          completedMs: Math.round(conquestStart - completedStart),
+          conquestsMs: Math.round(doneAt - conquestStart),
+          totalMs: Math.round(doneAt - completedStart)
+        });
       }
 
       console.log('Parse summary', stats);
@@ -385,27 +386,28 @@ ctx.onmessage = async (event: MessageEvent) => {
 
         if (batch.length >= batchSize) {
           ctx.postMessage({ type: 'ACTIVITY_BATCH', activities: batch });
-          if (workerPeaks && workerPeaks.length > 0) {
-            const completed = computeCompletedFromActivities(batch);
-            ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(completed) });
-          }
           batch = [];
         }
       }
 
       if (batch.length > 0) {
         ctx.postMessage({ type: 'ACTIVITY_BATCH', activities: batch });
-        if (workerPeaks && workerPeaks.length > 0) {
-          const completed = computeCompletedFromActivities(batch);
-          ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(completed) });
-        }
       }
 
       if (workerPeaks && workerPeaks.length > 0) {
+        const completedStart = performance.now();
         const allCompleted = computeCompletedFromActivities(parsedActivities);
-        ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(allCompleted) });
+        const conquestStart = performance.now();
         const conquests = computeConquestsFromActivities(parsedActivities);
+        const doneAt = performance.now();
+        ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(allCompleted) });
         ctx.postMessage({ type: 'PEAK_CONQUESTS', conquests: Object.fromEntries(conquests) });
+        console.log('Peak scan summary', {
+          activities: parsedActivities.length,
+          completedMs: Math.round(conquestStart - completedStart),
+          conquestsMs: Math.round(doneAt - conquestStart),
+          totalMs: Math.round(doneAt - completedStart)
+        });
       }
 
       ctx.postMessage({ type: 'DONE' });
