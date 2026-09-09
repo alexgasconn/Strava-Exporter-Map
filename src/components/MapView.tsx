@@ -304,19 +304,20 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         return Math.max(12, Math.round(base + (z - 5) * 2.2));
       };
 
+      // Use a ScatterplotLayer to mimic Leaflet's L.circleMarker style from maps.js
       layers.push(
-        new TextLayer({
+        new ScatterplotLayer({
           id: 'peaks-icons',
           data: singleItems,
           pickable: true,
-          billboard: true,
           getPosition: d => d.position,
-          getText: d => '📍',
-          getSize: d => pinSize(d),
-          getColor: d => d.completed ? [34, 197, 94] : [244, 63, 94],
-          getAngle: 0,
-          getTextAnchor: 'middle',
-          getAlignmentBaseline: 'center'
+          radiusUnits: 'pixels',
+          // Match Leaflet circleMarker radius: 5 and fillOpacity: 0.9
+          getRadius: d => 5,
+          getFillColor: d => d.completed ? [34, 197, 94, 230] : [244, 63, 94, 230],
+          getLineColor: [255, 255, 255, 255],
+          lineWidthMinPixels: 1,
+          opacity: 1
         })
       );
     }
