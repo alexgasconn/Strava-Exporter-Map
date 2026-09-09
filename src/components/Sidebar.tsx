@@ -65,8 +65,10 @@ export default function Sidebar({
 
   // no activity-type filters; show all activities
 
-  // compute unique comarcas for filter dropdown
-  const comarcaOptions = Array.from(new Set(peaks.map(p => (p.region || '').trim()).filter(s => s))).sort();
+  // compute unique comarcas for filter dropdown (split comma-separated region values)
+  const comarcaOptions = Array.from(new Set(
+    peaks.flatMap(p => (p.region || '').split(',').map(s => s.trim()).filter(Boolean))
+  )).sort();
 
   const toggleSort = (col: typeof sortBy) => {
     if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -79,8 +81,8 @@ export default function Sidebar({
     if (completionFilter === 'done' && !completedPeakIds.has(p.id)) return false;
     if (completionFilter === 'todo' && completedPeakIds.has(p.id)) return false;
     if (comarcaFilter !== 'all') {
-      const c = (p.region || '').toLowerCase();
-      if (c !== comarcaFilter.toLowerCase()) return false;
+      const regions = (p.region || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      if (!regions.includes(comarcaFilter.toLowerCase())) return false;
     }
     return true;
   });

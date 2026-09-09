@@ -206,9 +206,12 @@ ctx.onmessage = async (event: MessageEvent) => {
             // normalize into StravaActivity-like object
             const distance = computePathDistance(path);
             const date = (timestamps && timestamps.length > 0) ? timestamps[0] : toIsoDate(embeddedDate || meta?.date);
+            // create a nicer fallback name from filename when no metadata/name embedded
+            const rawBase = filename.split(/[\\/]/).pop() || 'Unknown Activity';
+            const niceFallback = rawBase.replace(/\.gz$/i, '').replace(/\.(gpx|tcx|fit)$/i, '').replace(/[_\-]+/g, ' ').trim();
             const activity: StravaActivity = {
               id: filename,
-              name: meta?.name || embeddedName || filename.split(/[\\/]/).pop() || 'Unknown Activity',
+              name: meta?.name || embeddedName || (niceFallback || rawBase) || 'Unknown Activity',
               type: activityType,
               date,
               distance,
@@ -348,9 +351,11 @@ ctx.onmessage = async (event: MessageEvent) => {
         }
 
         if (path && path.length > 0) {
+          const rawBase = filename.split(/[\\\\/]/).pop() || 'Unknown Activity';
+          const niceFallback = rawBase.replace(/\.gz$/i, '').replace(/\.(gpx|tcx|fit)$/i, '').replace(/[_\-]+/g, ' ').trim();
           const activity: StravaActivity = {
             id: filename,
-            name: activityName || filename.split(/[\\/\\\\]/).pop() || 'Unknown Activity',
+            name: activityName || (niceFallback || rawBase) || 'Unknown Activity',
             type: activityType,
             date: activityDate ? toIsoDate(activityDate) : '',
             distance: 0,
