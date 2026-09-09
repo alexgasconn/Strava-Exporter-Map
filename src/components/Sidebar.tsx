@@ -30,17 +30,17 @@ interface SidebarProps {
   dateTo: string;
   setDateFrom: (s: string) => void;
   setDateTo: (s: string) => void;
+  skippedFiles?: { name: string; reason: string }[];
+  parseErrors?: { filename?: string; reason: string }[];
   colorByGroups: boolean;
   setColorByGroups: (v: boolean) => void;
   onSelectPeak?: (p: any) => void;
-  skippedFiles?: { name: string; reason: string }[];
-  parseErrors?: { filename?: string; reason: string }[];
 }
 
 
 export default function Sidebar({
   onFileUpload, activities, loading, progress, progressMsg, viewMode, setViewMode,
-  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, dateFrom, dateTo, setDateFrom, setDateTo, colorByGroups, setColorByGroups, onSelectPeak
+  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, dateFrom, dateTo, setDateFrom, setDateTo, skippedFiles, parseErrors, colorByGroups, setColorByGroups, onSelectPeak
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);

@@ -69,14 +69,12 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
       // or a raw Peak from the JSON (has latitude/longitude). Handle both.
       let lon: number | null = null;
       let lat: number | null = null;
-      sizeUnits: 'pixels',
-        getSize: (d: any) => pinSize(d),
-          hitTolerance: 4,
+      let popupPeak: any = selectedPeak;
       if ((selectedPeak as any).position && Array.isArray((selectedPeak as any).position)) {
         lon = Number((selectedPeak as any).position[0]);
         lat = Number((selectedPeak as any).position[1]);
         popupPeak = selectedPeak;
-      } else if ((selectedPeak as any).longitude && (selectedPeak as any).latitude) {
+      } else if (typeof (selectedPeak as any).longitude === 'number' && typeof (selectedPeak as any).latitude === 'number') {
         lon = Number((selectedPeak as any).longitude);
         lat = Number((selectedPeak as any).latitude);
         popupPeak = {
@@ -137,11 +135,10 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
       maxZoom: 19,
       renderSubLayers: props => {
         const {
-          bbox: { west, south, east, north }
+          bbox: { west, south, east, north } = props.tile.bbox as any
         } = props.tile;
-        return new BitmapLayer(props, {
+        return new BitmapLayer(props as any, {
           id: `${props.id}-bitmap`,
-          data: null,
           image: props.data,
           bounds: [west, south, east, north]
         });
@@ -385,8 +382,8 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   return (
     <div className="w-full h-full relative">
       <DeckGL
-        viewState={viewState}
-        onViewStateChange={({ viewState }) => setViewState(viewState)}
+        viewState={viewState as any}
+        onViewStateChange={({ viewState }) => setViewState(viewState as typeof INITIAL_VIEW_STATE)}
         controller={true}
         layers={layers}
         onClick={(info) => {

@@ -235,8 +235,6 @@ export default function App() {
         />
       </div>
       <div className="flex-1 relative">
-        {/* Filter activities by date range before passing to MapView */}
-        {(() => { })()}
         <MapView
           activities={activities.filter(a => {
             if ((!dateFrom && !dateTo) || !a.date) return true;
