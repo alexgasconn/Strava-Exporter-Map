@@ -26,8 +26,6 @@ interface SidebarProps {
   completedPeakIds: Set<string>;
   proximityMeters: number;
   setProximityMeters: (n: number) => void;
-  mapStyleKey: string;
-  setMapStyleKey: (k: string) => void;
   colorByGroups: boolean;
   setColorByGroups: (v: boolean) => void;
   onSelectPeak?: (p: any) => void;
@@ -36,7 +34,7 @@ interface SidebarProps {
 
 export default function Sidebar({
   onFileUpload, activities, loading, progress, progressMsg, viewMode, setViewMode,
-  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, mapStyleKey, setMapStyleKey, colorByGroups, setColorByGroups, onSelectPeak
+  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, colorByGroups, setColorByGroups, onSelectPeak
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);
@@ -195,13 +193,6 @@ export default function Sidebar({
       </div>
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Basemap</h2>
-        <div className="flex gap-2">
-          <button onClick={() => setMapStyleKey('OpenStreetMap')} className={`p-2 rounded-md ${mapStyleKey === 'OpenStreetMap' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>OSM</button>
-          <button onClick={() => setMapStyleKey('CartoPositron')} className={`p-2 rounded-md ${mapStyleKey === 'CartoPositron' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Light</button>
-          <button onClick={() => setMapStyleKey('CartoDark')} className={`p-2 rounded-md ${mapStyleKey === 'CartoDark' ? 'bg-orange-500 text-black' : 'bg-slate-800/40'}`}>Dark</button>
-        </div>
-
         <div className="mt-2 flex items-center gap-2">
           <button onClick={() => setColorByGroups(!colorByGroups)} className={`px-3 py-1 rounded-md ${colorByGroups ? 'bg-orange-500 text-black' : 'bg-slate-800/30'}`}>
             {colorByGroups ? '4 Colores: ON' : '4 Colores: OFF'}

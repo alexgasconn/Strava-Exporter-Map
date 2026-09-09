@@ -31,13 +31,7 @@ export default function App() {
   const [proximityMeters, setProximityMeters] = useState<number>(250);
   const [selectedPeak, setSelectedPeak] = useState<null | any>(null);
 
-  // Map style selection (default OpenStreetMap)
-  const MAP_STYLES: Record<string, string> = {
-    OpenStreetMap: 'https://demotiles.maplibre.org/style.json',
-    CartoDark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-    CartoPositron: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
-  };
-  const [mapStyleKey, setMapStyleKey] = useState<keyof typeof MAP_STYLES>('CartoPositron');
+  // Map style: keep the default built into MapView (no user selection)
   const [colorByGroups, setColorByGroups] = useState<boolean>(false);
 
   const workerRef = useRef<Worker | null>(null);
@@ -219,8 +213,7 @@ export default function App() {
           setProximityMeters={setProximityMeters}
           colorByGroups={colorByGroups}
           setColorByGroups={setColorByGroups}
-          mapStyleKey={mapStyleKey}
-          setMapStyleKey={setMapStyleKey}
+          
           onSelectPeak={(p: any) => setSelectedPeak(p)}
         />
       </div>
@@ -232,7 +225,6 @@ export default function App() {
           showPeaks={showPeaks}
           completedPeakIds={completedPeakIds}
           completedPeaks={completedPeaks}
-          mapStyleUrl={MAP_STYLES[mapStyleKey]}
           colorByGroups={colorByGroups}
           selectedPeak={selectedPeak}
           onSelectPeak={(p: any) => setSelectedPeak(p)}
