@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Map from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
 import { WebMercatorViewport } from '@deck.gl/core';
@@ -38,6 +38,25 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   const [popup, setPopup] = useState<null | { peak: any }>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+
+  const visibleActivities = useMemo(() => activities, [activities]);
+  const peakItems = useMemo(() => {
+    if (!showPeaks || !peaks || peaks.length === 0) return [] as any[];
+    return peaks.map(p => {
+      const lon = Number(p.longitude);
+      const lat = Number(p.latitude);
+      return {
+        id: p.id,
+        name: p.name,
+        position: [lon, lat],
+        height: p.height,
+        essencial: !!p.essencial,
+        image: p.image,
+        url: p.url,
+        completed: completedPeakIds ? completedPeakIds.has(p.id) : false
+      };
+    });
+  }, [showPeaks, peaks, completedPeakIds]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -115,8 +134,6 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
     }
   }, [selectedPeak]);
 
-  const visibleActivities = activities; // show all activity types
-
   // helper: distance between lat/lon in meters
   function haversineMeters([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]) {
     const toRad = (v: number) => v * Math.PI / 180;
@@ -129,141 +146,115 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   }
 
   // compute which activities end near any completed peak
-  const conqueredActivityIds = new Set<string>();
-  if (completedPeaks && completedPeaks.length > 0) {
+  const conqueredActivityIds = useMemo(() => {
+    const result = new Set<string>();
+    if (!completedPeaks || completedPeaks.length === 0) return result;
     for (const act of visibleActivities) {
       if (!act.path || act.path.length === 0) continue;
       const last = act.path[act.path.length - 1];
       for (const p of completedPeaks) {
         const dist = haversineMeters([Number(last[0]), Number(last[1])], [Number(p.longitude), Number(p.latitude)]);
-        if (dist <= 200) { // within 200m
-          conqueredActivityIds.add(act.id);
+        if (dist <= 200) {
+          result.add(act.id);
           break;
         }
       }
     }
-  }
+    return result;
+  }, [completedPeaks, visibleActivities]);
 
-  const layers = [];
+  const layers = useMemo(() => {
+    const nextLayers: any[] = [];
 
   // Add CARTO raster tiles as the bottom-most layer so basemap is visible
-  layers.push(
-    new TileLayer({
-      id: 'carto-raster-tiles',
-      data: CARTO_RASTER_URL,
-      tileSize: 256,
-      minZoom: 0,
-      maxZoom: 19,
-      renderSubLayers: props => {
-        const {
-          bbox: { west, south, east, north } = props.tile.bbox as any
-        } = props.tile;
-        // Avoid passing the tile `data` through as the layer `data` prop —
-        // Deck.gl may treat it as a container and call `count()` on it.
-        // Instead, pass a null `data` and provide the tile image via `image`.
-        return new BitmapLayer({ ...props, data: null } as any, {
-          id: `${props.id}-bitmap`,
-          image: props.data,
-          bounds: [west, south, east, north]
-        });
-      }
-    })
-  );
-
-  if (viewMode === 'polylines') {
-    layers.push(
-      new PathLayer({
-        id: 'path-layer',
-        data: visibleActivities,
-        pickable: true,
-        widthScale: 1,
-        widthMinPixels: 2,
-        getPath: d => d.path,
-        getColor: d => conqueredActivityIds.has(d.id) ? [34, 197, 94] : (colorByGroups ? getActivityColor(d.type) : [249, 115, 22]),
-        getWidth: d => 2
+    nextLayers.push(
+      new TileLayer({
+        id: 'carto-raster-tiles',
+        data: CARTO_RASTER_URL,
+        tileSize: 256,
+        minZoom: 0,
+        maxZoom: 19,
+        renderSubLayers: props => {
+          const {
+            bbox: { west, south, east, north } = props.tile.bbox as any
+          } = props.tile;
+          return new BitmapLayer({ ...props, data: null } as any, {
+            id: `${props.id}-bitmap`,
+            image: props.data,
+            bounds: [west, south, east, north]
+          });
+        }
       })
     );
-  }
 
-  if (viewMode === 'endpoints') {
-    // Generate start and end points
-    const pointsData = visibleActivities.flatMap(a => {
-      const pts = [];
-      if (a.path.length > 0) {
-        pts.push({ position: a.path[0], color: [0, 255, 0], type: 'Start' });
-        pts.push({ position: a.path[a.path.length - 1], color: [255, 0, 0], type: 'End' });
-      }
-      return pts;
-    });
+    if (viewMode === 'polylines') {
+      nextLayers.push(
+        new PathLayer({
+          id: 'path-layer',
+          data: visibleActivities,
+          pickable: true,
+          widthScale: 1,
+          widthMinPixels: 2,
+          getPath: d => d.path,
+          getColor: d => conqueredActivityIds.has(d.id) ? [34, 197, 94] : (colorByGroups ? getActivityColor(d.type) : [249, 115, 22]),
+          getWidth: d => 2
+        })
+      );
+    }
 
-    layers.push(
-      new ScatterplotLayer({
-        id: 'endpoints-layer',
-        data: pointsData,
-        pickable: true,
-        opacity: 0.8,
-        stroked: true,
-        filled: true,
-        radiusScale: 6,
-        radiusMinPixels: 4,
-        radiusMaxPixels: 100,
-        lineWidthMinPixels: 1,
-        getPosition: d => d.position,
-        getFillColor: d => d.color,
-        getLineColor: d => [255, 255, 255]
-      })
-    );
-  }
+    if (viewMode === 'endpoints') {
+      const pointsData = visibleActivities.flatMap((a: any) => {
+        const pts: any[] = [];
+        if (a.path.length > 0) {
+          pts.push({ position: a.path[0], color: [0, 255, 0], type: 'Start' });
+          pts.push({ position: a.path[a.path.length - 1], color: [255, 0, 0], type: 'End' });
+        }
+        return pts;
+      });
 
-  if (viewMode === 'heatmap') {
-    // Flatten all points for heatmap
-    const heatData = visibleActivities.flatMap(a => a.path.map(p => ({ position: p })));
+      nextLayers.push(
+        new ScatterplotLayer({
+          id: 'endpoints-layer',
+          data: pointsData,
+          pickable: true,
+          opacity: 0.8,
+          stroked: true,
+          filled: true,
+          radiusScale: 6,
+          radiusMinPixels: 4,
+          radiusMaxPixels: 100,
+          lineWidthMinPixels: 1,
+          getPosition: d => d.position,
+          getFillColor: d => d.color,
+          getLineColor: d => [255, 255, 255]
+        })
+      );
+    }
 
-    // Heatmap tuned per user request: factor=1.133, rad=8, blur=14
-    // Deck.gl HeatmapLayer doesn't expose a direct 'blur' prop; we map:
-    // - factor -> weight multiplier
-    // - rad -> radiusPixels
-    // - blur -> approximate via threshold (higher blur -> higher threshold for visualization)
-    const HEAT_FACTOR = 1.133;
-    const HEAT_RAD = 8;
-    const HEAT_BLUR = 14; // mapped to threshold below
+    if (viewMode === 'heatmap') {
+      const heatData = visibleActivities.flatMap((a: any) => a.path.map((p: any) => ({ position: p })));
+      const HEAT_FACTOR = 1.133;
+      const HEAT_RAD = 8;
+      const HEAT_BLUR = 14;
 
-    layers.push(
-      new HeatmapLayer({
-        id: 'heatmap-layer',
-        data: heatData,
-        pickable: false,
-        getPosition: d => d.position,
-        getWeight: d => 1 * HEAT_FACTOR,
-        radiusPixels: HEAT_RAD,
-        intensity: 1,
-        threshold: Math.min(0.95, Math.max(0.01, HEAT_BLUR / 100))
-      })
-    );
-  }
+      nextLayers.push(
+        new HeatmapLayer({
+          id: 'heatmap-layer',
+          data: heatData,
+          pickable: false,
+          getPosition: d => d.position,
+          getWeight: d => 1 * HEAT_FACTOR,
+          radiusPixels: HEAT_RAD,
+          intensity: 1,
+          threshold: Math.min(0.95, Math.max(0.01, HEAT_BLUR / 100))
+        })
+      );
+    }
 
-  if (showPeaks && peaks && peaks.length > 0) {
-    const peakItems = peaks.map(p => {
-      const lon = Number(p.longitude);
-      const lat = Number(p.latitude);
-      return {
-        id: p.id,
-        name: p.name,
-        position: [lon, lat],
-        height: p.height,
-        essencial: !!p.essencial,
-        image: p.image,
-        url: p.url,
-        completed: completedPeakIds ? completedPeakIds.has(p.id) : false
-      };
-    });
-
-    if (peakItems.length > 0) {
-      // subtle halo under each pin for visibility — use pixel units so it's visible without zooming
+    if (showPeaks && peakItems.length > 0) {
       const zoom = (viewState && (viewState as any).zoom) || INITIAL_VIEW_STATE.zoom;
-      // much smaller halo so map remains uncluttered; pixel units so visible without zooming
       const haloRadiusPx = Math.max(6, Math.round(zoom * 1.6));
-      layers.push(
+      nextLayers.push(
         new ScatterplotLayer({
           id: 'peaks-halo',
           data: peakItems,
@@ -276,8 +267,6 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         })
       );
 
-      // Build an icon atlas of map pins (colored pin with inner white circle) and render via IconLayer.
-      // Create atlas synchronously using canvas so we don't depend on external assets.
       const buildIconAtlas = () => {
         const icons = [
           { id: 'pin-completed', color: [34, 197, 94] },
@@ -295,12 +284,10 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
           const cx = ox + iconSize / 2;
           const cy = iconSize * 0.36;
           const r = iconSize * 0.28;
-          // pin head (circle)
           ctx.beginPath();
           ctx.arc(cx, cy, r, 0, Math.PI * 2);
           ctx.fillStyle = `rgb(${it.color.join(',')})`;
           ctx.fill();
-          // pin tail (triangle)
           ctx.beginPath();
           ctx.moveTo(cx - r * 0.6, cy + r * 0.2);
           ctx.lineTo(cx + r * 0.6, cy + r * 0.2);
@@ -308,7 +295,6 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
           ctx.closePath();
           ctx.fillStyle = `rgb(${it.color.join(',')})`;
           ctx.fill();
-          // inner white circle
           ctx.beginPath();
           ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2);
           ctx.fillStyle = '#ffffff';
@@ -323,7 +309,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
 
       const atlas = buildIconAtlas();
       if (atlas) {
-        layers.push(
+        nextLayers.push(
           new IconLayer({
             id: 'peaks-icons',
             data: peakItems,
@@ -345,7 +331,9 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
         );
       }
     }
-  }
+
+    return nextLayers;
+  }, [CARTO_RASTER_URL, viewMode, visibleActivities, conqueredActivityIds, colorByGroups, showPeaks, peakItems, viewState]);
 
   // Calculate center if we have data (first activity's first point)
   // Or better, let DeckGL handle view state if we use a controller, 

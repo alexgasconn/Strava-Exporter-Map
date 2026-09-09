@@ -63,6 +63,7 @@ ctx.onmessage = async (event: MessageEvent) => {
 
   if (type === 'PARSE_ZIP') {
     try {
+      parsedActivities.length = 0;
       ctx.postMessage({ type: 'PROGRESS', message: 'Loading zip file in memory...', percent: 10 });
 
       if (!buffer || buffer.byteLength === 0) {
@@ -294,6 +295,7 @@ ctx.onmessage = async (event: MessageEvent) => {
 
   if (type === 'PARSE_FILES') {
     try {
+      parsedActivities.length = 0;
       const files = event.data.files;
       if (!files || !Array.isArray(files) || files.length === 0) {
         ctx.postMessage({ type: 'ERROR', message: 'No files provided for parsing.' });

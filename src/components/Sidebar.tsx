@@ -23,17 +23,13 @@ interface SidebarProps {
   completedPeakIds: Set<string>;
   proximityMeters: number;
   setProximityMeters: (n: number) => void;
-  dateFrom: string;
-  dateTo: string;
-  setDateFrom: (s: string) => void;
-  setDateTo: (s: string) => void;
   onSelectPeak?: (p: any) => void;
 }
 
 
 export default function Sidebar({
   onFileUpload, activities, loading, progress, progressMsg,
-  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, completedPeakIds, proximityMeters, setProximityMeters, dateFrom, dateTo, setDateFrom, setDateTo, onSelectPeak
+  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, completedPeakIds, proximityMeters, setProximityMeters, onSelectPeak
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);
@@ -352,18 +348,12 @@ export default function Sidebar({
           ))}
         </div>
 
-        {/* Comarca + date filters */}
+        {/* Comarca filter */}
         <div className="flex items-center gap-2">
           <select value={comarcaFilter} onChange={e => setComarcaFilter(e.target.value)} className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2 py-1.5 text-sm outline-none">
             <option value="all">Todas las comarcas</option>
             {comarcaOptions.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2 py-1.5 outline-none" />
-          <span className="text-slate-500">→</span>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2 py-1.5 outline-none" />
-          {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-slate-400 hover:text-slate-200">✕</button>}
         </div>
 
         {/* Proximity slider */}

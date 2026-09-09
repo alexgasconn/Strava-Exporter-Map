@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import MapView from './components/MapView';
 import Sidebar from './components/Sidebar';
@@ -35,8 +35,6 @@ export default function App() {
   const [peakConquests, setPeakConquests] = useState<Record<string, { activityId: string; name: string; date: string }>>({});
   const [proximityMeters, setProximityMeters] = useState<number>(250);
   const [selectedPeak, setSelectedPeak] = useState<null | any>(null);
-  const [dateFrom, setDateFrom] = useState<string>('');
-  const [dateTo, setDateTo] = useState<string>('');
   // do not store skipped files / parse errors / summary in UI state — log to console only
   // state variables removed per user preference
 
@@ -145,11 +143,11 @@ export default function App() {
     }
   }, [proximityMeters]);
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = useCallback(async (file: File) => {
     setLoading(true);
     setProgress(0);
     setProgressMsg('Initializing...');
-    setActivities([]); // Clear previous
+    setActivities([]);
 
     try {
       const buffer = await file.arrayBuffer();
@@ -158,9 +156,9 @@ export default function App() {
       setLoading(false);
       setProgressMsg('Error reading file.');
     }
-  };
+  }, []);
 
-  const handleFilesUpload = async (files: FileList | File[]) => {
+  const handleFilesUpload = useCallback(async (files: FileList | File[]) => {
     setLoading(true);
     setProgress(0);
     setProgressMsg('Initializing file parsing...');
@@ -182,20 +180,19 @@ export default function App() {
       setLoading(false);
       setProgressMsg('Error reading files.');
     }
-  };
+  }, []);
 
+  const filteredActivities = useMemo(() => activities, [activities]);
 
-
-  // compute peaks to show based on filters
-  const peaksToShow = allPeaks.filter(p => {
+  const peaksToShow = useMemo(() => allPeaks.filter(p => {
     if (onlyEssential && !p.essencial) return false;
     if (peakSearch && !p.name.toLowerCase().includes(peakSearch.toLowerCase())) return false;
     if (completionFilter === 'done' && !completedPeakIds.has(p.id)) return false;
     if (completionFilter === 'todo' && completedPeakIds.has(p.id)) return false;
     return true;
-  });
+  }), [allPeaks, onlyEssential, peakSearch, completionFilter, completedPeakIds]);
 
-  const completedPeaks = allPeaks.filter(p => completedPeakIds.has(p.id));
+  const completedPeaks = useMemo(() => allPeaks.filter(p => completedPeakIds.has(p.id)), [allPeaks, completedPeakIds]);
 
   return (
     <div className="flex h-screen bg-slate-950 font-sans relative overflow-hidden">
@@ -220,10 +217,6 @@ export default function App() {
             completedPeakIds={completedPeakIds}
             proximityMeters={proximityMeters}
             setProximityMeters={setProximityMeters}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            setDateFrom={setDateFrom}
-            setDateTo={setDateTo}
 
             onSelectPeak={(p: any) => setSelectedPeak(p)}
           />
@@ -239,13 +232,7 @@ export default function App() {
           {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
         </button>
         <MapView
-          activities={activities.filter(a => {
-            if ((!dateFrom && !dateTo) || !a.date) return true;
-            const aDate = a.date.split('T')[0];
-            if (dateFrom && aDate < dateFrom) return false;
-            if (dateTo && aDate > dateTo) return false;
-            return true;
-          })}
+          activities={filteredActivities}
           viewMode={VIEW_MODE}
           peaks={showPeaks ? peaksToShow : []}
           showPeaks={showPeaks}
