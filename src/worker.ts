@@ -13,6 +13,9 @@ let proximityMeters = 50;
 let peakGrid: Map<string, Peak[]> | null = null;
 let cellSizeDeg = 0.01; // fallback
 const parsedActivities: StravaActivity[] = [];
+// Map of activity id -> metadata (name, date) parsed from activities.csv inside an export
+type ActivityMeta = { name?: string; date?: string };
+
 
 ctx.onmessage = async (event: MessageEvent) => {
   const { type, buffer, peaks, proximity } = event.data;
@@ -52,6 +55,19 @@ ctx.onmessage = async (event: MessageEvent) => {
       // Extract all entries first so we can log which files were filtered out.
       const unzippedAll = fflate.unzipSync(zipData);
       const allNames = Object.keys(unzippedAll);
+      // Try to parse activities.csv (if present) to enrich logging with activity name/date
+      const activitiesMeta: Map<string, ActivityMeta> = new Map();
+      try {
+        const csvKey = allNames.find(k => k.toLowerCase().endsWith('activities.csv'));
+        if (csvKey) {
+          const csvText = fflate.strFromU8(unzippedAll[csvKey]);
+          const parsed = parseActivitiesCsv(csvText);
+          for (const [id, meta] of Object.entries(parsed)) activitiesMeta.set(id, meta as ActivityMeta);
+          ctx.postMessage({ type: 'DEBUG', message: `Parsed activities.csv entries: ${activitiesMeta.size}` });
+        }
+      } catch (e) {
+        console.warn('Failed to parse activities.csv', e);
+      }
       const matched: string[] = [];
       const skipped: { name: string, reason: string }[] = [];
 
@@ -183,7 +199,17 @@ ctx.onmessage = async (event: MessageEvent) => {
             ctx.postMessage({ type: 'FILE_STATUS', filename, ok: true, message: `✅ Parsed (${path.length} pts, ${Math.round(distance)} m)` });
           } else {
             console.warn(`❌ No track data for ${filename}`);
-            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: '❌ No track data extracted' });
+            // attempt to enrich log with activities.csv metadata if available
+            let metaMsg = '';
+            try {
+              const idMatch = filename.match(/(\d{5,})/);
+              if (idMatch) {
+                const id = idMatch[1];
+                const meta = activitiesMeta.get(id);
+                if (meta) metaMsg = ` (${meta.name || ''}${meta.date ? ' - ' + meta.date : ''})`;
+              }
+            } catch (e) { /* ignore */ }
+            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ No track data extracted${metaMsg}` });
           }
         } catch (e) {
           console.error('Failed to process', filename, e);
@@ -368,6 +394,45 @@ function parseGpx(data: Uint8Array, filename?: string): { path: [number, number]
     ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: String(e) });
     return { path: [] };
   }
+}
+
+function parseActivitiesCsv(text: string): Record<string, ActivityMeta> {
+  const out: Record<string, ActivityMeta> = {};
+  if (!text || typeof text !== 'string') return out;
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length === 0) return out;
+  const parseLine = (line: string) => {
+    const res: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) { res.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    res.push(cur);
+    return res;
+  };
+
+  const headers = parseLine(lines[0]).map(h => h.trim().toLowerCase());
+  const idIdx = headers.findIndex(h => h === 'activity_id' || h === 'id' || h === 'activityid');
+  const nameIdx = headers.findIndex(h => h === 'name' || h === 'activity_name' || h === 'title');
+  const dateIdx = headers.findIndex(h => h === 'start_date_local' || h === 'start_date' || h === 'date');
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseLine(lines[i]);
+    if (cols.length === 0) continue;
+    const id = idIdx >= 0 ? cols[idIdx] : (cols[0] || '').trim();
+    if (!id) continue;
+    const meta: ActivityMeta = {};
+    if (nameIdx >= 0) meta.name = cols[nameIdx];
+    if (dateIdx >= 0) meta.date = cols[dateIdx];
+    out[String(id).trim()] = meta;
+  }
+  return out;
 }
 
 function parseTcx(data: Uint8Array, filename?: string): { path: [number, number][], type?: string } {
