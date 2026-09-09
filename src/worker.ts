@@ -24,6 +24,18 @@ function toIsoDate(raw?: string): string {
   return Number.isNaN(t) ? '' : new Date(t).toISOString();
 }
 
+// Try to extract a numeric activity id from a filename-like string. Returns the longest
+// sequence of digits (length >= 5) or null if none found.
+function extractNumericIdFromName(s?: string): string | null {
+  if (!s) return null;
+  const matches = s.match(/(\d{5,})/g);
+  if (!matches || matches.length === 0) return null;
+  // prefer the longest match (in case of multiple groups)
+  let best = matches[0];
+  for (const m of matches) if (m.length > best.length) best = m;
+  return best;
+}
+
 
 ctx.onmessage = async (event: MessageEvent) => {
   const { type, buffer, peaks, proximity } = event.data;
@@ -200,7 +212,9 @@ ctx.onmessage = async (event: MessageEvent) => {
             continue;
           }
 
-          const meta = activitiesMeta.get((filename.match(/(\d{5,})/) || [])[1] || '');
+          // Try to match an activity id embedded in the filename to enrich with activities.csv data
+          const idFromName = extractNumericIdFromName(filename);
+          const meta = idFromName ? activitiesMeta.get(idFromName) : undefined;
 
           if (path && path.length > 0) {
             // normalize into StravaActivity-like object
@@ -208,7 +222,8 @@ ctx.onmessage = async (event: MessageEvent) => {
             const date = (timestamps && timestamps.length > 0) ? timestamps[0] : toIsoDate(embeddedDate || meta?.date);
             // create a nicer fallback name from filename when no metadata/name embedded
             const rawBase = filename.split(/[\\/]/).pop() || 'Unknown Activity';
-            const niceFallback = rawBase.replace(/\.gz$/i, '').replace(/\.(gpx|tcx|fit)$/i, '').replace(/[_\-]+/g, ' ').trim();
+            let niceFallback = rawBase.replace(/\.gz$/i, '').replace(/\.(gpx|tcx|fit)$/i, '').replace(/[_\-]+/g, ' ').trim();
+            if (/^\d{5,}$/.test(niceFallback)) niceFallback = `Actividad ${niceFallback}`;
             const activity: StravaActivity = {
               id: filename,
               name: meta?.name || embeddedName || (niceFallback || rawBase) || 'Unknown Activity',
@@ -352,7 +367,8 @@ ctx.onmessage = async (event: MessageEvent) => {
 
         if (path && path.length > 0) {
           const rawBase = filename.split(/[\\\\/]/).pop() || 'Unknown Activity';
-          const niceFallback = rawBase.replace(/\.gz$/i, '').replace(/\.(gpx|tcx|fit)$/i, '').replace(/[_\-]+/g, ' ').trim();
+          let niceFallback = rawBase.replace(/\.gz$/i, '').replace(/\.(gpx|tcx|fit)$/i, '').replace(/[_\-]+/g, ' ').trim();
+          if (/^\d{5,}$/.test(niceFallback)) niceFallback = `Actividad ${niceFallback}`;
           const activity: StravaActivity = {
             id: filename,
             name: activityName || (niceFallback || rawBase) || 'Unknown Activity',
@@ -589,17 +605,13 @@ function parseFit(data: Uint8Array): Promise<TrackParseResult> {
       lengthUnit: 'km',
       temperatureUnit: 'celcius',
       elapsedRecordField: true,
-      // 'both' exposes the flat record list as well as the session/lap tree,
-      // so GPS points are found regardless of how the device structured the file.
       mode: 'both',
     });
 
-    // Normalize to Uint8Array and give fitParser an isolated ArrayBuffer.
     let u8: Uint8Array;
     if (data instanceof ArrayBuffer) u8 = new Uint8Array(data as ArrayBuffer);
     else if (data instanceof Uint8Array) u8 = data as Uint8Array;
     else u8 = new Uint8Array(data as any || []);
-    // Some parsers crash if they read off a view of a larger buffer — slice to isolate.
     const isolatedBuffer = u8.slice().buffer;
 
     fitParser.parse(isolatedBuffer, (error: Error | null, fitData: any) => {
@@ -624,38 +636,94 @@ function parseFit(data: Uint8Array): Promise<TrackParseResult> {
       };
 
       const seen = new Set<any>();
+      let idCandidate: string | undefined = undefined;
+      const nameCandidates: { value: string; score: number }[] = [];
+      const dateCandidates: Date[] = [];
+
+      const addDateCandidate = (value: any) => {
+        if (!value) return;
+        const d = value instanceof Date ? value : new Date(value);
+        if (!Number.isNaN(d.getTime())) dateCandidates.push(d);
+      };
+
       const collect = (node: any) => {
         if (!node || typeof node !== 'object') return;
         if (seen.has(node)) return;
         seen.add(node);
+
         if (Array.isArray(node)) {
           for (const item of node) collect(item);
           return;
         }
-        for (const key of ['activity_name', 'activityName', 'workout_name', 'workoutName', 'name', 'title']) {
-          if (!name && typeof node[key] === 'string' && node[key].trim()) name = node[key].trim();
-        }
-        for (const key of ['start_time', 'startTime', 'timestamp']) {
-          if (!activityDate && node[key]) {
-            const parsed = new Date(node[key]);
-            if (!Number.isNaN(parsed.getTime())) activityDate = parsed.toISOString();
+
+        for (const [k, v] of Object.entries(node)) {
+          const key = String(k).toLowerCase();
+
+          if (v instanceof Date) {
+            addDateCandidate(v);
+          } else if (typeof v === 'string' && v.trim()) {
+            const s = v.trim();
+            let score = 0;
+            if (/(activity|workout|session|lap|course|name|title|event)/i.test(key)) score += 12;
+            if (/(name|title|wkt_name|sport_profile_name|activity_name|workout_name)/i.test(key)) score += 20;
+            if (/(event|local_timestamp|start_time|timestamp|time_created)/i.test(key)) score += 4;
+            score += Math.min(30, s.length);
+            if (!/^[^\p{L}]+$/u.test(s)) nameCandidates.push({ value: s, score });
+
+            const numberMatches = s.match(/(\d{5,})/g);
+            if (numberMatches && numberMatches.length > 0) {
+              const best = numberMatches.reduce((a, b) => a.length >= b.length ? a : b);
+              if (!idCandidate || best.length > idCandidate.length) idCandidate = best;
+            }
+          } else if (typeof v === 'number' && Number.isFinite(v) && Number.isInteger(v) && Math.abs(v) >= 10000) {
+            const s = String(Math.abs(v));
+            if (!idCandidate || s.length > idCandidate.length) idCandidate = s;
+          } else if (v && typeof v === 'object') {
+            collect(v);
+          }
+
+          addDateCandidate(v);
+
+          if (key.includes('start_time') || key.includes('timestamp') || key.includes('time_created') || key.includes('local_timestamp')) {
+            addDateCandidate(v);
+          }
+
+          if (Number.isFinite((node as any).position_lat) && Number.isFinite((node as any).position_long)) {
+            const lat = Number((node as any).position_lat);
+            const lon = Number((node as any).position_long);
+            if (Number.isFinite(lat) && Number.isFinite(lon)) {
+              path.push([lon, lat]);
+              if ((node as any).timestamp) timestamps.push(new Date((node as any).timestamp).toISOString());
+            }
           }
         }
+
         if (!type && node.sport) type = sportOf(node.sport);
-        const lat = node.position_lat;
-        const lon = node.position_long;
-        if (Number.isFinite(lat) && Number.isFinite(lon)) {
-          path.push([lon, lat]);
-          if (node.timestamp) timestamps.push(new Date(node.timestamp).toISOString());
-        }
-        for (const key of ['activity', 'sessions', 'laps', 'records', 'lengths', 'events', 'sets']) {
-          if (node[key]) collect(node[key]);
-        }
       };
 
       collect(fitData?.activity);
       if (path.length === 0) collect(fitData?.records);
       if (path.length === 0) collect(fitData?.sessions);
+      if (path.length === 0) collect(fitData?.messages);
+
+      if (nameCandidates.length > 0) {
+        nameCandidates.sort((a, b) => b.score - a.score);
+        name = nameCandidates[0].value;
+      }
+
+      if (!name && idCandidate) name = `Actividad ${idCandidate}`;
+
+      if (dateCandidates.length > 0) {
+        dateCandidates.sort((a, b) => a.getTime() - b.getTime());
+        activityDate = dateCandidates[0].toISOString();
+      } else {
+        const sessionDate = fitData?.sessions?.[0]?.start_time ?? fitData?.activity?.sessions?.[0]?.start_time ?? fitData?.events?.[0]?.timestamp ?? fitData?.local_timestamp;
+        if (sessionDate) {
+          const asDate = new Date(sessionDate);
+          if (!Number.isNaN(asDate.getTime())) activityDate = asDate.toISOString();
+        }
+      }
+
       if (!type) type = sportOf(fitData?.sessions?.[0]?.sport ?? fitData?.sports?.[0]?.sport);
 
       const res: TrackParseResult = { path: normalizePath(path), type, name, date: activityDate };
