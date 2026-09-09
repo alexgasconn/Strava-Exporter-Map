@@ -55,6 +55,8 @@ ctx.onmessage = async (event: MessageEvent) => {
       const matched: string[] = [];
       const skipped: { name: string, reason: string }[] = [];
 
+      // Accept files under activities/ with extensions: .gpx, .tcx, .fit and optional .gz suffix
+      const acceptRe = /(^|\/)activities\/.*\.(gpx|tcx|fit)(?:\.gz)?$/i;
       for (const rawName of allNames) {
         const raw = rawName.replaceAll('\\\\', '/').replaceAll('\\', '/');
         const name = raw.toLowerCase();
@@ -62,14 +64,8 @@ ctx.onmessage = async (event: MessageEvent) => {
           skipped.push({ name: rawName, reason: 'directory' });
           continue;
         }
-        const inActivities = /(^|\/)activities\//.test(name);
-        const isExt = (name.endsWith('.gpx') || name.endsWith('.tcx') || name.endsWith('.fit') || name.endsWith('.gz'));
-        if (!inActivities) {
-          skipped.push({ name: rawName, reason: 'not in activities/ folder' });
-          continue;
-        }
-        if (!isExt) {
-          skipped.push({ name: rawName, reason: 'unsupported extension' });
+        if (!acceptRe.test(name)) {
+          skipped.push({ name: rawName, reason: 'not activities/*.gpx|.tcx|.fit(.gz)?' });
           continue;
         }
         matched.push(rawName);
@@ -110,52 +106,72 @@ ctx.onmessage = async (event: MessageEvent) => {
         console.log(`Attempting to read: ${filename} (${i + 1}/${totalRows})`);
         ctx.postMessage({ type: 'DEBUG', message: `Reading ${filename} (${i + 1}/${totalRows})` });
 
-        // If it's gzipped (like .fit.gz, .gpx.gz)
-        if (filename.toLowerCase().endsWith('.gz')) {
-          try {
-            fileData = fflate.gunzipSync(fileData);
-          } catch (e) {
-            // skip if decompression fails
-            console.warn("Failed to gunzip", filename, e);
-            ctx.postMessage({ type: 'DEBUG', message: `Failed to gunzip ${filename}: ${String(e)}` });
-          }
-        }
-
-        const baseName = filename.replace(/\.gz$/i, '').toLowerCase();
-        let path: [number, number][] = [];
-        let activityType = 'Other';
-
+        // Determine if compressed and underlying extension
+        const isGz = filename.toLowerCase().endsWith('.gz');
         try {
-          if (baseName.endsWith('.gpx')) {
+          if (isGz) {
+            try {
+              fileData = fflate.gunzipSync(fileData);
+            } catch (e) {
+              console.error('Failed to gunzip', filename, e);
+              ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Failed to gunzip: ${String(e)}` });
+              continue; // skip this file
+            }
+          }
+
+          const stripped = filename.replace(/\.gz$/i, '').toLowerCase();
+          const extMatch = stripped.match(/\.(gpx|tcx|fit)$/i);
+          const ext = extMatch ? extMatch[1].toLowerCase() : null;
+
+          let path: [number, number][] = [];
+          let timestamps: string[] | undefined = undefined;
+          let activityType = 'Other';
+
+          if (ext === 'gpx') {
             const res = parseGpx(fileData, filename);
             path = res.path;
-            if (res.type) activityType = res.type;
-          } else if (baseName.endsWith('.tcx')) {
+            timestamps = (res as any).timestamps;
+            if ((res as any).type) activityType = (res as any).type;
+          } else if (ext === 'tcx') {
             const res = parseTcx(fileData, filename);
             path = res.path;
-            if (res.type) activityType = res.type;
-          } else if (baseName.endsWith('.fit')) {
+            timestamps = (res as any).timestamps;
+            if ((res as any).type) activityType = (res as any).type;
+          } else if (ext === 'fit') {
             const res = await parseFit(fileData);
             path = res.path;
-            if (res.type) activityType = res.type;
+            if ((res as any).type) activityType = (res as any).type;
+            // parseFit will also populate timestamps if available
+            timestamps = (res as any).timestamps;
+          } else {
+            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Unsupported extension for ${filename}` });
+            continue;
+          }
+
+          if (path && path.length > 0) {
+            // normalize into StravaActivity-like object
+            const distance = computePathDistance(path);
+            const date = (timestamps && timestamps.length > 0) ? timestamps[0] : '';
+            const activity: StravaActivity = {
+              id: filename,
+              name: filename.split(/[\\/]/).pop() || 'Unknown Activity',
+              type: activityType,
+              date,
+              distance,
+              path,
+              timestamps
+            };
+            parsedActivities.push(activity);
+            batch.push(activity);
+            console.log(`✅ Parsed ${filename} (${path.length} points, ${Math.round(distance)} m)`);
+            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: true, message: `✅ Parsed (${path.length} pts, ${Math.round(distance)} m)` });
+          } else {
+            console.warn(`❌ No track data for ${filename}`);
+            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: '❌ No track data extracted' });
           }
         } catch (e) {
-          console.error('Failed to parse', filename, e);
-          ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: String(e) });
-        }
-
-        if (path && path.length > 0) {
-          const activity: StravaActivity = {
-            id: filename,
-            name: filename.split(/[\\/]/).pop() || 'Unknown Activity',
-            type: activityType,
-            date: '',
-            distance: 0,
-            path
-          };
-          // keep parsed activities in worker to allow recompute on proximity change
-          parsedActivities.push(activity);
-          batch.push(activity);
+          console.error('Failed to process', filename, e);
+          ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Error: ${String(e)}` });
         }
 
         parsedCount++;
@@ -357,9 +373,10 @@ function parseTcx(data: Uint8Array, filename?: string): { path: [number, number]
   }
 }
 
-function extractPathAndTypeFromGeoJSON(geo: any): { path: [number, number][], type?: string } {
+function extractPathAndTypeFromGeoJSON(geo: any): { path: [number, number][], type?: string, timestamps?: string[] } {
   let path: [number, number][] = [];
   let type: string | undefined = undefined;
+  const timestamps: string[] = [];
 
   if (geo && geo.type === 'FeatureCollection' && Array.isArray(geo.features)) {
     for (const feature of geo.features) {
@@ -372,27 +389,34 @@ function extractPathAndTypeFromGeoJSON(geo: any): { path: [number, number][], ty
         else if (t.includes('walk') || t.includes('hike')) type = 'Walk';
       }
 
+      // Try to extract coordTimes array if present
+      const coordTimes = feature.properties && feature.properties.coordTimes && Array.isArray(feature.properties.coordTimes) ? feature.properties.coordTimes : null;
+
       if (feature.geometry && feature.geometry.type === 'LineString' && Array.isArray(feature.geometry.coordinates)) {
         const coords = feature.geometry.coordinates;
-        path = path.concat(
-          coords
-            .filter((c: any) => Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number' && typeof c[1] === 'number' && !isNaN(c[0]) && !isNaN(c[1]))
-            .map((c: any) => [c[0], c[1]] as [number, number])
-        );
+        for (let idx = 0; idx < coords.length; idx++) {
+          const c = coords[idx];
+          if (Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number' && typeof c[1] === 'number' && !isNaN(c[0]) && !isNaN(c[1])) {
+            path.push([c[0], c[1]] as [number, number]);
+            if (coordTimes && coordTimes[idx]) timestamps.push(String(coordTimes[idx]));
+          }
+        }
       } else if (feature.geometry && feature.geometry.type === 'MultiLineString' && Array.isArray(feature.geometry.coordinates)) {
         for (const line of feature.geometry.coordinates) {
           if (Array.isArray(line)) {
-            path = path.concat(
-              line
-                .filter((c: any) => Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number' && typeof c[1] === 'number' && !isNaN(c[0]) && !isNaN(c[1]))
-                .map((c: any) => [c[0], c[1]] as [number, number])
-            );
+            for (let idx = 0; idx < line.length; idx++) {
+              const c = line[idx];
+              if (Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number' && typeof c[1] === 'number' && !isNaN(c[0]) && !isNaN(c[1])) {
+                path.push([c[0], c[1]] as [number, number]);
+                if (coordTimes && coordTimes[idx]) timestamps.push(String(coordTimes[idx]));
+              }
+            }
           }
         }
       }
     }
   }
-  return { path, type };
+  return { path, type, timestamps: timestamps.length > 0 ? timestamps : undefined };
 }
 
 function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: string }> {
@@ -417,6 +441,7 @@ function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: 
       }
 
       const path: [number, number][] = [];
+      const timestamps: string[] = [];
       let type: string | undefined = undefined;
 
       if (fitData && fitData.activity && Array.isArray(fitData.activity.sessions)) {
@@ -437,6 +462,7 @@ function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: 
                   if (typeof record.position_lat === 'number' && typeof record.position_long === 'number' &&
                     !isNaN(record.position_lat) && !isNaN(record.position_long)) {
                     path.push([record.position_long, record.position_lat]);
+                    if (record.timestamp) timestamps.push(new Date(record.timestamp).toISOString());
                   }
                 }
               }
@@ -450,11 +476,14 @@ function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: 
           if (typeof record.position_lat === 'number' && typeof record.position_long === 'number' &&
             !isNaN(record.position_lat) && !isNaN(record.position_long)) {
             path.push([record.position_long, record.position_lat]);
+            if (record.timestamp) timestamps.push(new Date(record.timestamp).toISOString());
           }
         }
       }
 
-      resolve({ path, type });
+      const res: any = { path, type };
+      if (timestamps.length > 0) res.timestamps = timestamps;
+      resolve(res);
     });
   });
 }
@@ -487,6 +516,14 @@ function haversine(lon1: number, lat1: number, lon2: number, lat2: number) {
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+function computePathDistance(path: [number, number][]) {
+  let d = 0;
+  for (let i = 1; i < path.length; i++) {
+    d += haversine(Number(path[i - 1][0]), Number(path[i - 1][1]), Number(path[i][0]), Number(path[i][1]));
+  }
+  return d;
 }
 
 function computeCompletedFromActivities(activities: StravaActivity[]) {

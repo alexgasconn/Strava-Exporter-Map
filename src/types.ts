@@ -5,6 +5,7 @@ export interface StravaActivity {
   date: string;
   distance: number;
   path: [number, number][]; // [longitude, latitude][]
+  timestamps?: string[];
 }
 
 export type ViewMode = 'polylines' | 'heatmap' | 'endpoints';
