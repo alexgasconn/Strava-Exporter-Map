@@ -367,7 +367,9 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
     <div ref={containerRef} className="w-full h-full relative">
       <DeckGL
         viewState={viewState as any}
-        onViewStateChange={({ viewState }) => setViewState(viewState as typeof INITIAL_VIEW_STATE)}
+        onViewStateChange={({ viewState: nextViewState }) => {
+          setViewState({ ...INITIAL_VIEW_STATE, ...nextViewState } as typeof INITIAL_VIEW_STATE);
+        }}
         controller={true}
         layers={layers}
         onClick={(info) => {

@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import MapView from './components/MapView';
 import Sidebar from './components/Sidebar';
 import type { StravaActivity, ViewMode, Peak } from './types';
@@ -15,6 +16,7 @@ const VIEW_MODE: ViewMode = 'polylines';
 
 export default function App() {
   const [activities, setActivities] = useState<StravaActivity[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
@@ -196,36 +198,46 @@ export default function App() {
   const completedPeaks = allPeaks.filter(p => completedPeakIds.has(p.id));
 
   return (
-    <div className="flex h-screen bg-slate-950 font-sans">
-      <div className="border-r border-slate-800/60" style={{ width: 'clamp(360px, 28%, 460px)' }}>
-        <Sidebar
-          onFileUpload={handleFileUpload}
-          activities={activities}
-          loading={loading}
-          progress={progress}
-          progressMsg={progressMsg}
+    <div className="flex h-screen bg-slate-950 font-sans relative overflow-hidden">
+      {sidebarOpen && (
+        <div className="border-r border-slate-800/60" style={{ width: 'clamp(360px, 28%, 460px)' }}>
+          <Sidebar
+            onFileUpload={handleFileUpload}
+            activities={activities}
+            loading={loading}
+            progress={progress}
+            progressMsg={progressMsg}
 
-          peaks={allPeaks}
-          showPeaks={showPeaks}
-          setShowPeaks={setShowPeaks}
-          onlyEssential={onlyEssential}
-          setOnlyEssential={setOnlyEssential}
-          peakSearch={peakSearch}
-          setPeakSearch={setPeakSearch}
-          completionFilter={completionFilter}
-          setCompletionFilter={setCompletionFilter}
-          completedPeakIds={completedPeakIds}
-          proximityMeters={proximityMeters}
-          setProximityMeters={setProximityMeters}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          setDateFrom={setDateFrom}
-          setDateTo={setDateTo}
+            peaks={allPeaks}
+            showPeaks={showPeaks}
+            setShowPeaks={setShowPeaks}
+            onlyEssential={onlyEssential}
+            setOnlyEssential={setOnlyEssential}
+            peakSearch={peakSearch}
+            setPeakSearch={setPeakSearch}
+            completionFilter={completionFilter}
+            setCompletionFilter={setCompletionFilter}
+            completedPeakIds={completedPeakIds}
+            proximityMeters={proximityMeters}
+            setProximityMeters={setProximityMeters}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            setDateFrom={setDateFrom}
+            setDateTo={setDateTo}
 
-          onSelectPeak={(p: any) => setSelectedPeak(p)}
-        />
-      </div>
+            onSelectPeak={(p: any) => setSelectedPeak(p)}
+          />
+        </div>
+      )}
       <div className="flex-1 relative">
+        <button
+          type="button"
+          aria-label={sidebarOpen ? 'Ocultar sidebar' : 'Mostrar sidebar'}
+          onClick={() => setSidebarOpen(v => !v)}
+          className="absolute left-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/85 text-slate-200 shadow-lg shadow-slate-950/40 backdrop-blur-sm transition hover:bg-slate-800"
+        >
+          {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+        </button>
         <MapView
           activities={activities.filter(a => {
             if ((!dateFrom && !dateTo) || !a.date) return true;
