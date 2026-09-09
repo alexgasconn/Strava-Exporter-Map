@@ -34,6 +34,7 @@ export default function App() {
   const [dateTo, setDateTo] = useState<string>('');
   const [skippedFiles, setSkippedFiles] = useState<{ name: string, reason: string }[]>([]);
   const [parseErrors, setParseErrors] = useState<{ filename?: string, reason: string }[]>([]);
+  const [summary, setSummary] = useState<null | { total: number; ok: number; noTrack: number; gunzipFailed: number; unsupported: number; errored: number }>(null);
 
   // Map style: keep the default built into MapView (no user selection)
   const [colorByGroups, setColorByGroups] = useState<boolean>(false);
@@ -50,7 +51,7 @@ export default function App() {
     workerRef.current = new Worker();
 
     workerRef.current.onmessage = (e) => {
-      const { type, message, percent, activities: batch, completedIds, entries, filename, reason } = e.data;
+      const { type, message, percent, activities: batch, completedIds, entries, filename, reason, stats } = e.data;
 
       if (type === 'PROGRESS') {
         setProgressMsg(message);
@@ -97,6 +98,8 @@ export default function App() {
             completedTimerRef.current = null;
           }, 200);
         }
+      } else if (type === 'SUMMARY') {
+        setSummary(stats || null);
       } else if (type === 'DONE') {
         setLoading(false);
         setProgress(100);
@@ -230,6 +233,7 @@ export default function App() {
           setColorByGroups={setColorByGroups}
           skippedFiles={skippedFiles}
           parseErrors={parseErrors}
+          summary={summary}
 
           onSelectPeak={(p: any) => setSelectedPeak(p)}
         />

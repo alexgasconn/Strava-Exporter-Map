@@ -32,6 +32,7 @@ interface SidebarProps {
   setDateTo: (s: string) => void;
   skippedFiles?: { name: string; reason: string }[];
   parseErrors?: { filename?: string; reason: string }[];
+  summary?: { total: number; ok: number; noTrack: number; gunzipFailed: number; unsupported: number; errored: number } | null;
   colorByGroups: boolean;
   setColorByGroups: (v: boolean) => void;
   onSelectPeak?: (p: any) => void;
@@ -40,7 +41,7 @@ interface SidebarProps {
 
 export default function Sidebar({
   onFileUpload, activities, loading, progress, progressMsg, viewMode, setViewMode,
-  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, dateFrom, dateTo, setDateFrom, setDateTo, skippedFiles, parseErrors, colorByGroups, setColorByGroups, onSelectPeak
+  peaks, showPeaks, setShowPeaks, onlyEssential, setOnlyEssential, peakSearch, setPeakSearch, completionFilter, setCompletionFilter, visiblePeakIds, setVisiblePeakIds, completedPeakIds, proximityMeters, setProximityMeters, dateFrom, dateTo, setDateFrom, setDateTo, skippedFiles, parseErrors, summary, colorByGroups, setColorByGroups, onSelectPeak
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);
@@ -197,6 +198,19 @@ export default function Sidebar({
           </button>
         </div>
       </div>
+      {summary && (
+        <div className="px-4 pb-2">
+          <div className="bg-slate-800/40 border border-slate-700 rounded-lg p-3 text-xs text-slate-300 space-y-1">
+            <div className="text-sm text-slate-200 font-medium">Import summary</div>
+            <div>Files in export: <span className="text-slate-100">{summary.total}</span></div>
+            <div>With GPS track: <span className="text-green-400">{summary.ok}</span></div>
+            <div>Without GPS (pool, indoor…): <span className="text-orange-300">{summary.noTrack}</span></div>
+            {summary.gunzipFailed > 0 && <div>Decompression failed: <span className="text-red-400">{summary.gunzipFailed}</span></div>}
+            {summary.errored > 0 && <div>Parse errors: <span className="text-red-400">{summary.errored}</span></div>}
+            {summary.unsupported > 0 && <div>Unsupported: <span className="text-red-400">{summary.unsupported}</span></div>}
+          </div>
+        </div>
+      )}
       {skippedFiles && skippedFiles.length > 0 && (
         <div className="mt-4 bg-slate-800/30 p-3 rounded">
           <div className="flex items-center justify-between">

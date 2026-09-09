@@ -16,6 +16,13 @@ const parsedActivities: StravaActivity[] = [];
 // Map of activity id -> metadata (name, date) parsed from activities.csv inside an export
 type ActivityMeta = { name?: string; date?: string };
 
+// activities.csv dates are human-readable ("Jan 4, 2025, 8:51:22 AM"); the UI filters on ISO.
+function toIsoDate(raw?: string): string {
+  if (!raw) return '';
+  const t = Date.parse(raw);
+  return Number.isNaN(t) ? '' : new Date(t).toISOString();
+}
+
 
 ctx.onmessage = async (event: MessageEvent) => {
   const { type, buffer, peaks, proximity } = event.data;
@@ -110,6 +117,7 @@ ctx.onmessage = async (event: MessageEvent) => {
 
       let parsedCount = 0;
       const totalRows = files.length;
+      const stats = { total: totalRows, ok: 0, noTrack: 0, gunzipFailed: 0, unsupported: 0, errored: 0 };
 
       ctx.postMessage({ type: 'PROGRESS', message: `Parsing ${totalRows} activities...`, percent: 20 });
 
@@ -120,7 +128,6 @@ ctx.onmessage = async (event: MessageEvent) => {
         let fileData = unzipped[filename];
         // debug: announce file being attempted
         console.log(`Attempting to read: ${filename} (${i + 1}/${totalRows})`);
-        ctx.postMessage({ type: 'DEBUG', message: `Reading ${filename} (${i + 1}/${totalRows})` });
 
         // Determine if compressed and underlying extension
         try {
@@ -142,6 +149,7 @@ ctx.onmessage = async (event: MessageEvent) => {
               }
             } catch (e) {
               console.error('Failed to gunzip', filename, e);
+              stats.gunzipFailed++;
               ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Failed to gunzip: ${String(e)}` });
               continue; // skip this file
             }
@@ -176,17 +184,20 @@ ctx.onmessage = async (event: MessageEvent) => {
             // parseFit will also populate timestamps if available
             timestamps = (res as any).timestamps;
           } else {
+            stats.unsupported++;
             ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Unsupported extension for ${filename}` });
             continue;
           }
 
+          const meta = activitiesMeta.get((filename.match(/(\d{5,})/) || [])[1] || '');
+
           if (path && path.length > 0) {
             // normalize into StravaActivity-like object
             const distance = computePathDistance(path);
-            const date = (timestamps && timestamps.length > 0) ? timestamps[0] : '';
+            const date = (timestamps && timestamps.length > 0) ? timestamps[0] : toIsoDate(meta?.date);
             const activity: StravaActivity = {
               id: filename,
-              name: filename.split(/[\\/]/).pop() || 'Unknown Activity',
+              name: meta?.name || filename.split(/[\\/]/).pop() || 'Unknown Activity',
               type: activityType,
               date,
               distance,
@@ -195,24 +206,17 @@ ctx.onmessage = async (event: MessageEvent) => {
             };
             parsedActivities.push(activity);
             batch.push(activity);
-            console.log(`✅ Parsed ${filename} (${path.length} points, ${Math.round(distance)} m)`);
+            stats.ok++;
             ctx.postMessage({ type: 'FILE_STATUS', filename, ok: true, message: `✅ Parsed (${path.length} pts, ${Math.round(distance)} m)` });
           } else {
-            console.warn(`❌ No track data for ${filename}`);
-            // attempt to enrich log with activities.csv metadata if available
-            let metaMsg = '';
-            try {
-              const idMatch = filename.match(/(\d{5,})/);
-              if (idMatch) {
-                const id = idMatch[1];
-                const meta = activitiesMeta.get(id);
-                if (meta) metaMsg = ` (${meta.name || ''}${meta.date ? ' - ' + meta.date : ''})`;
-              }
-            } catch (e) { /* ignore */ }
-            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ No track data extracted${metaMsg}` });
+            stats.noTrack++;
+            const label = meta ? ` — ${meta.date || 'sin fecha'} — ${meta.name || 'sin título'}` : '';
+            console.warn(`❌ Sin ruta GPS: ${filename}${label}`);
+            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Sin ruta GPS${label}` });
           }
         } catch (e) {
           console.error('Failed to process', filename, e);
+          stats.errored++;
           ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Error: ${String(e)}` });
         }
 
@@ -247,6 +251,8 @@ ctx.onmessage = async (event: MessageEvent) => {
         ctx.postMessage({ type: 'COMPLETED_UPDATE', completedIds: Array.from(allCompleted) });
       }
 
+      console.log('Parse summary', stats);
+      ctx.postMessage({ type: 'SUMMARY', stats });
       ctx.postMessage({ type: 'DONE' });
 
     } catch (error: any) {
@@ -398,39 +404,40 @@ function parseGpx(data: Uint8Array, filename?: string): { path: [number, number]
 
 function parseActivitiesCsv(text: string): Record<string, ActivityMeta> {
   const out: Record<string, ActivityMeta> = {};
-  if (!text || typeof text !== 'string') return out;
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-  if (lines.length === 0) return out;
-  const parseLine = (line: string) => {
-    const res: string[] = [];
-    let cur = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQuotes = !inQuotes;
-      } else if (ch === ',' && !inQuotes) { res.push(cur); cur = ''; }
-      else cur += ch;
-    }
-    res.push(cur);
-    return res;
-  };
+  if (!text) return out;
 
-  const headers = parseLine(lines[0]).map(h => h.trim().toLowerCase());
-  const idIdx = headers.findIndex(h => h === 'activity_id' || h === 'id' || h === 'activityid');
-  const nameIdx = headers.findIndex(h => h === 'name' || h === 'activity_name' || h === 'title');
-  const dateIdx = headers.findIndex(h => h === 'start_date_local' || h === 'start_date' || h === 'date');
+  // Full CSV tokenizer: activity names may contain commas and embedded newlines.
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQuotes && text[i + 1] === '"') { cur += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) { row.push(cur); cur = ''; }
+    else if (ch === '\n' && !inQuotes) { row.push(cur); rows.push(row); row = []; cur = ''; }
+    else if (ch === '\r' && !inQuotes) { /* ignore */ }
+    else cur += ch;
+  }
+  if (cur.length > 0 || row.length > 0) { row.push(cur); rows.push(row); }
+  if (rows.length < 2) return out;
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseLine(lines[i]);
-    if (cols.length === 0) continue;
-    const id = idIdx >= 0 ? cols[idIdx] : (cols[0] || '').trim();
+  const headers = rows[0].map(h => h.trim().toLowerCase());
+  const find = (re: RegExp) => headers.findIndex(h => re.test(h));
+  const idIdx = find(/^(activity[ _]?id|id)$/);
+  const nameIdx = find(/^(activity[ _]?name|nombre de la actividad|name|title)$/);
+  const dateIdx = find(/^(activity[ _]?date|fecha de la actividad|start[ _]?date(_local)?|date)$/);
+
+  for (let i = 1; i < rows.length; i++) {
+    const cols = rows[i];
+    const id = (idIdx >= 0 ? cols[idIdx] : cols[0] || '').trim();
     if (!id) continue;
-    const meta: ActivityMeta = {};
-    if (nameIdx >= 0) meta.name = cols[nameIdx];
-    if (dateIdx >= 0) meta.date = cols[dateIdx];
-    out[String(id).trim()] = meta;
+    out[id] = {
+      name: nameIdx >= 0 ? (cols[nameIdx] || '').trim() : undefined,
+      date: dateIdx >= 0 ? (cols[dateIdx] || '').trim() : undefined,
+    };
   }
   return out;
 }
@@ -485,31 +492,56 @@ function extractPathAndTypeFromGeoJSON(geo: any): { path: [number, number][], ty
       // Try to extract coordTimes array if present
       const coordTimes = feature.properties && feature.properties.coordTimes && Array.isArray(feature.properties.coordTimes) ? feature.properties.coordTimes : null;
 
-      if (feature.geometry && feature.geometry.type === 'LineString' && Array.isArray(feature.geometry.coordinates)) {
-        const coords = feature.geometry.coordinates;
+      const geom = feature.geometry;
+      if (!geom) continue;
+
+      const pushCoords = (coords: any[]) => {
         for (let idx = 0; idx < coords.length; idx++) {
           const c = coords[idx];
-          if (Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number' && typeof c[1] === 'number' && !isNaN(c[0]) && !isNaN(c[1])) {
+          if (Array.isArray(c) && c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1])) {
             path.push([c[0], c[1]] as [number, number]);
             if (coordTimes && coordTimes[idx]) timestamps.push(String(coordTimes[idx]));
           }
         }
-      } else if (feature.geometry && feature.geometry.type === 'MultiLineString' && Array.isArray(feature.geometry.coordinates)) {
-        for (const line of feature.geometry.coordinates) {
-          if (Array.isArray(line)) {
-            for (let idx = 0; idx < line.length; idx++) {
-              const c = line[idx];
-              if (Array.isArray(c) && c.length >= 2 && typeof c[0] === 'number' && typeof c[1] === 'number' && !isNaN(c[0]) && !isNaN(c[1])) {
-                path.push([c[0], c[1]] as [number, number]);
-                if (coordTimes && coordTimes[idx]) timestamps.push(String(coordTimes[idx]));
-              }
-            }
-          }
+      };
+
+      if (geom.type === 'LineString' && Array.isArray(geom.coordinates)) {
+        pushCoords(geom.coordinates);
+      } else if ((geom.type === 'MultiLineString' || geom.type === 'Polygon') && Array.isArray(geom.coordinates)) {
+        for (const line of geom.coordinates) if (Array.isArray(line)) pushCoords(line);
+      } else if (geom.type === 'MultiPoint' && Array.isArray(geom.coordinates)) {
+        pushCoords(geom.coordinates);
+      } else if (geom.type === 'Point' && Array.isArray(geom.coordinates)) {
+        pushCoords([geom.coordinates]);
+      } else if (geom.type === 'GeometryCollection' && Array.isArray(geom.geometries)) {
+        for (const g of geom.geometries) {
+          if (!g || !Array.isArray(g.coordinates)) continue;
+          if (g.type === 'LineString' || g.type === 'MultiPoint') pushCoords(g.coordinates);
+          else if (g.type === 'MultiLineString' || g.type === 'Polygon') {
+            for (const line of g.coordinates) if (Array.isArray(line)) pushCoords(line);
+          } else if (g.type === 'Point') pushCoords([g.coordinates]);
         }
       }
     }
   }
-  return { path, type, timestamps: timestamps.length > 0 ? timestamps : undefined };
+  return { path: normalizePath(path), type, timestamps: timestamps.length > 0 ? timestamps : undefined };
+}
+
+// Drops out-of-range points; if the whole track looks transposed, swaps lon/lat.
+function normalizePath(path: [number, number][]): [number, number][] {
+  if (path.length === 0) return path;
+  const inRange = (lon: number, lat: number) =>
+    Number.isFinite(lon) && Number.isFinite(lat) &&
+    lon >= -180 && lon <= 180 && lat >= -90 && lat <= 90 &&
+    !(lon === 0 && lat === 0);
+
+  const valid = path.filter(p => inRange(p[0], p[1]));
+  if (valid.length > 0) return valid;
+
+  const swapped = path
+    .map(p => [p[1], p[0]] as [number, number])
+    .filter(p => inRange(p[0], p[1]));
+  return swapped;
 }
 
 function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: string }> {
@@ -520,7 +552,9 @@ function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: 
       lengthUnit: 'km',
       temperatureUnit: 'celcius',
       elapsedRecordField: true,
-      mode: 'cascade',
+      // 'both' exposes the flat record list as well as the session/lap tree,
+      // so GPS points are found regardless of how the device structured the file.
+      mode: 'both',
     });
 
     // Normalize to Uint8Array and give fitParser an isolated ArrayBuffer.
@@ -541,44 +575,42 @@ function parseFit(data: Uint8Array): Promise<{ path: [number, number][], type?: 
       const timestamps: string[] = [];
       let type: string | undefined = undefined;
 
-      if (fitData && fitData.activity && Array.isArray(fitData.activity.sessions)) {
-        for (const session of fitData.activity.sessions) {
-          // Try to extract activity sport
-          if (!type && session.sport) {
-            const s = String(session.sport).toLowerCase();
-            if (s.includes('cycl') || s.includes('bik')) type = 'Ride';
-            else if (s.includes('run')) type = 'Run';
-            else if (s.includes('swim')) type = 'Swim';
-            else if (s.includes('walk') || s.includes('hike')) type = 'Walk';
-          }
+      const sportOf = (s: any) => {
+        const v = String(s || '').toLowerCase();
+        if (v.includes('cycl') || v.includes('bik')) return 'Ride';
+        if (v.includes('run')) return 'Run';
+        if (v.includes('swim')) return 'Swim';
+        if (v.includes('walk') || v.includes('hike')) return 'Walk';
+        return undefined;
+      };
 
-          if (Array.isArray(session.laps)) {
-            for (const lap of session.laps) {
-              if (Array.isArray(lap.records)) {
-                for (const record of lap.records) {
-                  if (typeof record.position_lat === 'number' && typeof record.position_long === 'number' &&
-                    !isNaN(record.position_lat) && !isNaN(record.position_long)) {
-                    path.push([record.position_long, record.position_lat]);
-                    if (record.timestamp) timestamps.push(new Date(record.timestamp).toISOString());
-                  }
-                }
-              }
-            }
-          }
+      const seen = new Set<any>();
+      const collect = (node: any) => {
+        if (!node || typeof node !== 'object') return;
+        if (seen.has(node)) return;
+        seen.add(node);
+        if (Array.isArray(node)) {
+          for (const item of node) collect(item);
+          return;
         }
-      }
-
-      if (path.length === 0 && fitData && Array.isArray(fitData.records)) {
-        for (const record of fitData.records) {
-          if (typeof record.position_lat === 'number' && typeof record.position_long === 'number' &&
-            !isNaN(record.position_lat) && !isNaN(record.position_long)) {
-            path.push([record.position_long, record.position_lat]);
-            if (record.timestamp) timestamps.push(new Date(record.timestamp).toISOString());
-          }
+        if (!type && node.sport) type = sportOf(node.sport);
+        const lat = node.position_lat;
+        const lon = node.position_long;
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          path.push([lon, lat]);
+          if (node.timestamp) timestamps.push(new Date(node.timestamp).toISOString());
         }
-      }
+        for (const key of ['activity', 'sessions', 'laps', 'records', 'lengths', 'events', 'sets']) {
+          if (node[key]) collect(node[key]);
+        }
+      };
 
-      const res: any = { path, type };
+      collect(fitData?.activity);
+      if (path.length === 0) collect(fitData?.records);
+      if (path.length === 0) collect(fitData?.sessions);
+      if (!type) type = sportOf(fitData?.sessions?.[0]?.sport ?? fitData?.sports?.[0]?.sport);
+
+      const res: any = { path: normalizePath(path), type };
       if (timestamps.length > 0) res.timestamps = timestamps;
       resolve(res);
     });
