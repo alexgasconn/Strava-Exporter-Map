@@ -86,10 +86,10 @@ ctx.onmessage = async (event: MessageEvent) => {
           const csvText = fflate.strFromU8(unzippedAll[csvKey]);
           const parsed = parseActivitiesCsv(csvText);
           for (const [id, meta] of Object.entries(parsed)) activitiesMeta.set(id, meta as ActivityMeta);
-          ctx.postMessage({ type: 'DEBUG', message: `Parsed activities.csv entries: ${activitiesMeta.size}` });
+          ctx.postMessage({ type: 'DEBUG', message: `Entrades de activities.csv analitzades: ${activitiesMeta.size}` });
         }
       } catch (e) {
-        console.warn('Failed to parse activities.csv', e);
+        console.warn("No s'ha pogut analitzar activities.csv", e);
       }
       const matched: string[] = [];
       const skipped: { name: string, reason: string }[] = [];
@@ -135,7 +135,7 @@ ctx.onmessage = async (event: MessageEvent) => {
       const totalRows = files.length;
       const stats = { total: totalRows, ok: 0, noTrack: 0, gunzipFailed: 0, unsupported: 0, errored: 0 };
 
-      ctx.postMessage({ type: 'PROGRESS', message: `Parsing ${totalRows} activities...`, percent: 20 });
+      ctx.postMessage({ type: 'PROGRESS', message: `Analitzant ${totalRows} activitats...`, percent: 20 });
 
       const batchSize = 150;
       let batch: any[] = [];
@@ -164,9 +164,9 @@ ctx.onmessage = async (event: MessageEvent) => {
                 attempts++;
               }
             } catch (e) {
-              console.error('Failed to gunzip', filename, e);
+              console.error("No s'ha pogut descomprimir (gunzip)", filename, e);
               stats.gunzipFailed++;
-              ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Failed to gunzip: ${String(e)}` });
+              ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ No s'ha pogut descomprimir: ${String(e)}` });
               continue; // skip this file
             }
           }
@@ -209,7 +209,7 @@ ctx.onmessage = async (event: MessageEvent) => {
             embeddedDate = (res as any).date;
           } else {
             stats.unsupported++;
-            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Unsupported extension for ${filename}` });
+            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Extensió no compatible per a ${filename}` });
             continue;
           }
 
@@ -222,12 +222,12 @@ ctx.onmessage = async (event: MessageEvent) => {
             const distance = computePathDistance(path);
             const date = (timestamps && timestamps.length > 0) ? timestamps[0] : toIsoDate(embeddedDate || meta?.date);
             // create a nicer fallback name from filename when no metadata/name embedded
-            const rawBase = filename.split(/[\\/]/).pop() || 'Unknown Activity';
+            const rawBase = filename.split(/[\\/]/).pop() || 'Activitat desconeguda';
             let niceFallback = rawBase.replace(/\.gz$/i, '').replace(/\.(gpx|tcx|fit)$/i, '').replace(/[_\-]+/g, ' ').trim();
-            if (/^\d{5,}$/.test(niceFallback)) niceFallback = `Actividad ${niceFallback}`;
+            if (/^\d{5,}$/.test(niceFallback)) niceFallback = `Activitat ${niceFallback}`;
             const activity: StravaActivity = {
               id: filename,
-              name: meta?.name || embeddedName || (niceFallback || rawBase) || 'Unknown Activity',
+              name: meta?.name || embeddedName || (niceFallback || rawBase) || 'Activitat desconeguda',
               type: activityType,
               date,
               distance,
@@ -237,15 +237,15 @@ ctx.onmessage = async (event: MessageEvent) => {
             parsedActivities.push(activity);
             batch.push(activity);
             stats.ok++;
-            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: true, message: `✅ Parsed (${path.length} pts, ${Math.round(distance)} m)` });
+            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: true, message: `✅ Analitzat (${path.length} pts, ${Math.round(distance)} m)` });
           } else {
             stats.noTrack++;
-            const label = meta ? ` — ${meta.date || 'sin fecha'} — ${meta.name || 'sin título'}` : '';
-            console.warn(`❌ Sin ruta GPS: ${filename}${label}`);
-            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Sin ruta GPS${label}` });
+            const label = meta ? ` — ${meta.date || 'sense data'} — ${meta.name || 'sense títol'}` : '';
+            console.warn(`❌ Sense trajectòria GPS: ${filename}${label}`);
+            ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Sense trajectòria GPS${label}` });
           }
         } catch (e) {
-          console.error('Failed to process', filename, e);
+          console.error("Error en processar", filename, e);
           stats.errored++;
           ctx.postMessage({ type: 'FILE_STATUS', filename, ok: false, message: `❌ Error: ${String(e)}` });
         }
@@ -258,7 +258,7 @@ ctx.onmessage = async (event: MessageEvent) => {
         }
 
         if (parsedCount % 50 === 0) {
-          ctx.postMessage({ type: 'PROGRESS', message: `Parsing tracks... ${parsedCount}/${totalRows}`, percent: 20 + Math.floor((parsedCount / totalRows) * 80) });
+          ctx.postMessage({ type: 'PROGRESS', message: `Analitzant rutes... ${parsedCount}/${totalRows}`, percent: 20 + Math.floor((parsedCount / totalRows) * 80) });
         }
       }
       // send remaining
@@ -290,7 +290,7 @@ ctx.onmessage = async (event: MessageEvent) => {
 
     } catch (error: any) {
       console.error(error);
-      ctx.postMessage({ type: 'ERROR', message: `Error processing zip: ${error.message}` });
+      ctx.postMessage({ type: 'ERROR', message: `Error en el processament del zip: ${error.message}` });
     }
   }
 
@@ -303,7 +303,7 @@ ctx.onmessage = async (event: MessageEvent) => {
         return;
       }
 
-      ctx.postMessage({ type: 'PROGRESS', message: `Parsing ${files.length} provided files...`, percent: 10 });
+      ctx.postMessage({ type: 'PROGRESS', message: `Analitzant ${files.length} fitxers...`, percent: 10 });
 
       const batchSize = 150;
       let batch: any[] = [];
@@ -333,7 +333,7 @@ ctx.onmessage = async (event: MessageEvent) => {
             }
           }
         } catch (e) {
-          console.warn('Failed to gunzip', filename, e);
+          console.warn("No s'ha pogut descomprimir (gunzip)", filename, e);
         }
 
         const baseName = filename.replace(/\.gz$/i, '').toLowerCase();
@@ -364,17 +364,17 @@ ctx.onmessage = async (event: MessageEvent) => {
             activityDate = res.date;
           }
         } catch (e) {
-          console.error('Failed to parse', filename, e);
+          console.error("Error en l'anàlisi", filename, e);
           ctx.postMessage({ type: 'PARSE_ERROR', filename, reason: String(e) });
         }
 
         if (path && path.length > 0) {
-          const rawBase = filename.split(/[\\\\/]/).pop() || 'Unknown Activity';
+          const rawBase = filename.split(/[\\\\/]/).pop() || 'Activitat desconeguda';
           let niceFallback = rawBase.replace(/\.gz$/i, '').replace(/\.(gpx|tcx|fit)$/i, '').replace(/[_\-]+/g, ' ').trim();
-          if (/^\d{5,}$/.test(niceFallback)) niceFallback = `Actividad ${niceFallback}`;
+          if (/^\d{5,}$/.test(niceFallback)) niceFallback = `Activitat ${niceFallback}`;
           const activity: StravaActivity = {
             id: filename,
-            name: activityName || (niceFallback || rawBase) || 'Unknown Activity',
+            name: activityName || (niceFallback || rawBase) || 'Activitat desconeguda',
             type: activityType,
             date: activityDate ? toIsoDate(activityDate) : '',
             distance: 0,
@@ -413,7 +413,7 @@ ctx.onmessage = async (event: MessageEvent) => {
       ctx.postMessage({ type: 'DONE' });
     } catch (err: any) {
       console.error(err);
-      ctx.postMessage({ type: 'ERROR', message: `Error parsing files: ${err?.message || String(err)}` });
+      ctx.postMessage({ type: 'ERROR', message: `Error en l'anàlisi dels fitxers: ${err?.message || String(err)}` });
     }
     return;
   }
@@ -479,8 +479,8 @@ function parseActivitiesCsv(text: string): Record<string, ActivityMeta> {
   const headers = rows[0].map(h => h.trim().toLowerCase());
   const find = (re: RegExp) => headers.findIndex(h => re.test(h));
   const idIdx = find(/^(activity[ _]?id|id)$/);
-  const nameIdx = find(/^(activity[ _]?name|nombre de la actividad|name|title)$/);
-  const dateIdx = find(/^(activity[ _]?date|fecha de la actividad|start[ _]?date(_local)?|date)$/);
+  const nameIdx = find(/^(activity[ _]?name|nombre de la actividad|nom de l'?activitat|nom de la activitat|nom activitat|name|title)$/);
+  const dateIdx = find(/^(activity[ _]?date|fecha de la actividad|data de la activitat|data de l'?activitat|start[ _]?date(_local)?|date|data)$/);
 
   for (let i = 1; i < rows.length; i++) {
     const cols = rows[i];
@@ -715,7 +715,7 @@ function parseFit(data: Uint8Array): Promise<TrackParseResult> {
         name = nameCandidates[0].value;
       }
 
-      if (!name && idCandidate) name = `Actividad ${idCandidate}`;
+      if (!name && idCandidate) name = `Activitat ${idCandidate}`;
 
       if (dateCandidates.length > 0) {
         dateCandidates.sort((a, b) => a.getTime() - b.getTime());

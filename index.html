@@ -1,18 +1,47 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Strava Explorer</title>
-    <meta name="description" content="Explore your Strava export in a rich map interface." />
-    <meta property="og:title" content="Strava Explorer" />
-    <meta property="og:description" content="Explore your Strava export in a rich map interface." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<html lang="ca">
 
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>100 cims — Repte 100 Cims</title>
+  <meta name="description"
+    content="100 cims: visualitza i porta el control del Repte 100 Cims en un mapa interactiu. Importa les teves activitats (.gpx, .fit, exportació de Strava) i marca els cims completats." />
+  <meta name="keywords" content="100 cims, Repte 100 Cims, FEEC, cims, mapes, Strava, GPX, FIT, activitats" />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="/" />
+  <meta property="og:title" content="100 cims — Repte 100 Cims" />
+  <meta property="og:description"
+    content="Visualitza i porta el control del Repte 100 Cims amb les teves exportacions de Strava i arxius GPX/FIT." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/assets/og.svg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "name": "100 cims",
+          "url": "/",
+          "description": "Visualitza i porta el control del Repte 100 Cims important les teves activitats i arxius GPS."
+        },
+        {
+          "@type": "Organization",
+          "name": "100 cims",
+          "url": "/"
+        }
+      ]
+    }
+    </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

@@ -1,6 +1,8 @@
 {
-  "name": "Strava Explorer",
-  "description": "Visualize your Strava data export on an interactive map. Supports polylines, start/end points, and heatmap views for bike, run, swim, and other activities.",
+  "name": "100 cims",
+  "description": "Visualitza i controla el Repte 100 Cims: importa les teves activitats i arxius GPS i marca els cims completats.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

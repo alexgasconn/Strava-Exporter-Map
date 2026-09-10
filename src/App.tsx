@@ -61,10 +61,10 @@ export default function App() {
       } else if (type === 'DEBUG') {
         console.debug(message);
       } else if (type === 'SKIPPED_ENTRIES') {
-        if (Array.isArray(entries)) console.debug('Skipped entries:', entries);
+        if (Array.isArray(entries)) console.debug('Entrades ignorades:', entries);
       } else if (type === 'PARSE_ERROR') {
         // only log parse errors to console per user request
-        console.error('Worker parse error', filename, reason);
+        console.error('Error de parse del worker', filename, reason);
       } else if (type === 'ACTIVITY_BATCH') {
         if (Array.isArray(batch) && batch.length > 0) {
           // push into buffer and schedule a single flush to React state
@@ -103,11 +103,11 @@ export default function App() {
       } else if (type === 'PEAK_CONQUESTS') {
         if (conquests) setPeakConquests(conquests);
       } else if (type === 'SUMMARY') {
-        console.log('Import summary', stats);
+        console.log("Resum d'importació", stats);
       } else if (type === 'DONE') {
         setLoading(false);
         setProgress(100);
-        setProgressMsg('Complete');
+        setProgressMsg('Completat');
       } else if (type === 'ERROR') {
         setLoading(false);
         setProgressMsg('Error: ' + message);
@@ -146,7 +146,7 @@ export default function App() {
   const handleFileUpload = useCallback(async (file: File) => {
     setLoading(true);
     setProgress(0);
-    setProgressMsg('Initializing...');
+    setProgressMsg('Inicialitzant...');
     setActivities([]);
 
     try {
@@ -154,14 +154,14 @@ export default function App() {
       workerRef.current?.postMessage({ type: 'PARSE_ZIP', buffer });
     } catch (e) {
       setLoading(false);
-      setProgressMsg('Error reading file.');
+      setProgressMsg('Error llegint el fitxer.');
     }
   }, []);
 
   const handleFilesUpload = useCallback(async (files: FileList | File[]) => {
     setLoading(true);
     setProgress(0);
-    setProgressMsg('Initializing file parsing...');
+    setProgressMsg("Iniciant l'anàlisi dels fitxers...");
     setActivities([]);
 
     try {
@@ -178,7 +178,7 @@ export default function App() {
       workerRef.current?.postMessage({ type: 'PARSE_FILES', files: toSend }, transfer);
     } catch (err) {
       setLoading(false);
-      setProgressMsg('Error reading files.');
+      setProgressMsg('Error llegint els fitxers.');
     }
   }, []);
 

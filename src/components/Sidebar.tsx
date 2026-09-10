@@ -162,7 +162,7 @@ export default function Sidebar({
           <Activity className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-lg font-bold tracking-tight leading-none">Strava Explorer</h1>
+          <h1 className="text-lg font-bold tracking-tight leading-none">100 cims</h1>
           <p className="text-xs text-slate-400 mt-0.5">Repte 100 Cims · FEEC</p>
         </div>
       </div>
@@ -174,14 +174,14 @@ export default function Sidebar({
           className="w-full bg-orange-600 hover:bg-orange-500 text-white font-medium py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Upload className="w-4 h-4" />
-          {loading ? 'Parsing…' : 'Importar export (.zip)'}
+          {loading ? 'Analitzant…' : 'Importar exportació (.zip)'}
         </button>
         <button
           onClick={handleMultiClick}
           disabled={loading}
           className="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-sm font-medium py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Cargar archivos (.gpx/.fit)
+          Carregar arxius (.gpx/.fit)
         </button>
         <input
           type="file"
@@ -212,204 +212,204 @@ export default function Sidebar({
             <div className="flex justify-between mb-1">
               <span className="truncate pr-2">{progressMsg}</span>
               <span>{progress}%</span>
+              <div>
+                <h1 className="text-lg font-bold tracking-tight leading-none">100 cims</h1>
+                <p className="text-xs text-slate-400 mt-0.5">Repte 100 Cims · FEEC</p>
+              </div>
             </div>
-            <div className="w-full bg-slate-700 rounded-full h-1.5">
-              <div className="bg-orange-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
-            </div>
-          </div>
         )}
-      </div>
+          </div>
 
       {/* Stats overview */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-1">
-          <div className="flex items-center gap-1.5 text-slate-400 text-xs">
-            <Activity className="w-3.5 h-3.5" /> Actividades
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+              <Activity className="w-3.5 h-3.5" /> Activitats
+            </div>
+            <div className="text-2xl font-bold text-orange-400 leading-none">{activities.length}</div>
           </div>
-          <div className="text-2xl font-bold text-orange-400 leading-none">{activities.length}</div>
-        </div>
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-1">
-          <div className="flex items-center gap-1.5 text-slate-400 text-xs">
-            <Mountain className="w-3.5 h-3.5" /> Cims fets
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+              <Mountain className="w-3.5 h-3.5" /> Cims fets
+            </div>
+            <div className="text-2xl font-bold text-emerald-400 leading-none">{donePeaks}<span className="text-sm text-slate-500 font-medium">/{totalPeaks}</span></div>
           </div>
-          <div className="text-2xl font-bold text-emerald-400 leading-none">{donePeaks}<span className="text-sm text-slate-500 font-medium">/{totalPeaks}</span></div>
         </div>
-      </div>
-      <div className="-mt-2">
-        <div className="flex justify-between text-xs text-slate-400 mb-1">
-          <span>Objectiu Repte 100 Cims</span>
-          <span className="font-medium text-slate-200">{Math.min(donePeaks, CHALLENGE_GOAL)}/{CHALLENGE_GOAL}</span>
-        </div>
-        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-          <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style={{ width: `${goalPct}%` }}></div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-700/60 bg-slate-800/40 p-3.5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Estadístiques</h2>
-          <span className="text-xs font-semibold text-orange-300">{completionRate}%</span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="rounded-xl bg-slate-900/70 p-2.5 border border-slate-700/50">
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">Completats</div>
-            <div className="mt-1 text-xl font-bold text-emerald-400">{donePeaks}</div>
+        <div className="-mt-2">
+          <div className="flex justify-between text-xs text-slate-400 mb-1">
+            <span>Objectiu Repte 100 Cims</span>
+            <span className="font-medium text-slate-200">{Math.min(donePeaks, CHALLENGE_GOAL)}/{CHALLENGE_GOAL}</span>
           </div>
-          <div className="rounded-xl bg-slate-900/70 p-2.5 border border-slate-700/50">
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">Essencials</div>
-            <div className="mt-1 text-xl font-bold text-amber-400">{essentialCompleted}/{essentialPeaks}</div>
-          </div>
-          <div className="rounded-xl bg-slate-900/70 p-2.5 border border-slate-700/50">
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">Altura mitja</div>
-            <div className="mt-1 text-xl font-bold text-sky-400">{avgHeight} m</div>
-          </div>
-          <div className="rounded-xl bg-slate-900/70 p-2.5 border border-slate-700/50">
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">Més alt pendent</div>
-            <div className="mt-1 text-sm font-bold text-violet-300 truncate">{tallestPending ? tallestPending.name : '—'}</div>
+          <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style={{ width: `${goalPct}%` }}></div>
           </div>
         </div>
 
-        <div className="mb-3">
-          <div className="mb-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">Per comarca</div>
-          <div className="space-y-1.5">
-            {regionStats.map(({ region, total, done, pct }) => (
-              <div key={region} className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-300">
-                  <span className="truncate pr-2">{region}</span>
-                  <span>{pct}% ({done}/{total})</span>
+        <div className="rounded-2xl border border-slate-700/60 bg-slate-800/40 p-3.5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Estadístiques</h2>
+            <span className="text-xs font-semibold text-orange-300">{completionRate}%</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="rounded-xl bg-slate-900/70 p-2.5 border border-slate-700/50">
+              <div className="text-[10px] uppercase tracking-wide text-slate-400">Completats</div>
+              <div className="mt-1 text-xl font-bold text-emerald-400">{donePeaks}</div>
+            </div>
+            <div className="rounded-xl bg-slate-900/70 p-2.5 border border-slate-700/50">
+              <div className="text-[10px] uppercase tracking-wide text-slate-400">Essencials</div>
+              <div className="mt-1 text-xl font-bold text-amber-400">{essentialCompleted}/{essentialPeaks}</div>
+            </div>
+            <div className="rounded-xl bg-slate-900/70 p-2.5 border border-slate-700/50">
+              <div className="text-[10px] uppercase tracking-wide text-slate-400">Altura mitja</div>
+              <div className="mt-1 text-xl font-bold text-sky-400">{avgHeight} m</div>
+            </div>
+            <div className="rounded-xl bg-slate-900/70 p-2.5 border border-slate-700/50">
+              <div className="text-[10px] uppercase tracking-wide text-slate-400">Més alt pendent</div>
+              <div className="mt-1 text-sm font-bold text-violet-300 truncate">{tallestPending ? tallestPending.name : '—'}</div>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">Per comarca</div>
+            <div className="space-y-1.5">
+              {regionStats.map(({ region, total, done, pct }) => (
+                <div key={region} className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-slate-300">
+                    <span className="truncate pr-2">{region}</span>
+                    <span>{pct}% ({done}/{total})</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-700/80">
+                    <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400" style={{ width: `${pct}%` }} />
+                  </div>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-700/80">
-                  <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400" style={{ width: `${pct}%` }} />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">Per grup d'altura</div>
+            <div className="space-y-1.5">
+              {heightStats.map(({ label, total, done, pct }) => (
+                <div key={label} className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-slate-300">
+                    <span>{label} m</span>
+                    <span>{pct}% ({done}/{total})</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-700/80">
+                    <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-400" style={{ width: `${pct}%` }} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        <div>
-          <div className="mb-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">Per grup d'altura</div>
-          <div className="space-y-1.5">
-            {heightStats.map(({ label, total, done, pct }) => (
-              <div key={label} className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-300">
-                  <span>{label} m</span>
-                  <span>{pct}% ({done}/{total})</span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-700/80">
-                  <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-400" style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            ))}
+
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Mountain className="w-3.5 h-3.5" /> Cims ({sortedPeaks.length})
+            </h2>
           </div>
-        </div>
-      </div>
 
-
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Mountain className="w-3.5 h-3.5" /> Cims ({sortedPeaks.length})
-          </h2>
-        </div>
-
-        {/* Toggles */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => setShowPeaks(!showPeaks)}
-            className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${showPeaks ? 'bg-orange-500/20 border-orange-500 text-orange-300' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-          >
-            <MapPin className="w-3.5 h-3.5" /> {showPeaks ? 'Visibles' : 'Ocultos'}
-          </button>
-          <button
-            onClick={() => setOnlyEssential(!onlyEssential)}
-            className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${onlyEssential ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-          >
-            ★ Solo esenciales
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3">
-          <Search className="w-4 h-4 text-slate-500 shrink-0" />
-          <input value={peakSearch} onChange={e => setPeakSearch(e.target.value)} placeholder="Buscar cim…" className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-slate-500" />
-        </div>
-
-        {/* Completion filter chips */}
-        <div className="grid grid-cols-3 gap-1.5 bg-slate-800/40 p-1 rounded-lg">
-          {([['all', 'Todos'], ['done', 'Fets'], ['todo', 'Pendientes']] as const).map(([key, label]) => (
+          {/* Toggles */}
+          <div className="grid grid-cols-2 gap-2">
             <button
-              key={key}
-              onClick={() => setCompletionFilter(key)}
-              className={`text-xs font-medium py-1.5 rounded-md transition-all ${completionFilter === key ? 'bg-orange-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+              onClick={() => setShowPeaks(!showPeaks)}
+              className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${showPeaks ? 'bg-orange-500/20 border-orange-500 text-orange-300' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
             >
-              {label}
+              <MapPin className="w-3.5 h-3.5" /> {showPeaks ? 'Visibles' : 'Ocults'}
             </button>
-          ))}
-        </div>
-
-        {/* Comarca filter */}
-        <div className="flex items-center gap-2">
-          <select value={comarcaFilter} onChange={e => setComarcaFilter(e.target.value)} className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2 py-1.5 text-sm outline-none">
-            <option value="all">Todas las comarcas</option>
-            {comarcaOptions.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-
-        {/* Proximity slider */}
-        <div className="flex flex-col gap-1.5">
-          <label className="flex justify-between text-xs text-slate-400">
-            <span>Umbral de proximidad</span>
-            <span className="font-medium text-slate-200">{proximityMeters} m</span>
-          </label>
-          <input type="range" min={20} max={500} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} className="w-full accent-orange-500" />
-        </div>
-
-        {/* Sort */}
-        <div className="flex items-center gap-1 text-xs text-slate-400">
-          <span>Ordenar:</span>
-          {([['name', 'Nombre'], ['height', 'Altura'], ['status', 'Estado']] as const).map(([key, label]) => (
             <button
-              key={key}
-              onClick={() => toggleSort(key)}
-              className={`px-1.5 py-0.5 rounded ${sortBy === key ? 'text-orange-300' : 'hover:text-slate-200'}`}
+              onClick={() => setOnlyEssential(!onlyEssential)}
+              className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${onlyEssential ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
             >
-              {label}{sortBy === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+              ★ Només essencials
             </button>
-          ))}
-        </div>
+          </div>
 
-        {/* Peak list */}
-        <div className="flex flex-col gap-1 -mx-1">
-          {sortedPeaks.length === 0 && (
-            <div className="text-center text-sm text-slate-500 py-6">No hay cims que coincidan.</div>
-          )}
-          {sortedPeaks.map(p => {
-            const done = completedPeakIds.has(p.id);
-            return (
-              <div
-                key={p.id}
-                className={`group flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors cursor-pointer ${done ? 'hover:bg-emerald-500/10' : 'hover:bg-slate-800/60'}`}
-                onClick={() => onSelectPeak?.(p)}
+          {/* Search */}
+          <div className="flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3">
+            <Search className="w-4 h-4 text-slate-500 shrink-0" />
+            <input value={peakSearch} onChange={e => setPeakSearch(e.target.value)} placeholder="Cercar cim…" className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-slate-500" />
+          </div>
+
+          {/* Completion filter chips */}
+          <div className="grid grid-cols-3 gap-1.5 bg-slate-800/40 p-1 rounded-lg">
+            {([['all', 'Tots'], ['done', 'Fets'], ['todo', 'Pendents']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setCompletionFilter(key)}
+                className={`text-xs font-medium py-1.5 rounded-md transition-all ${completionFilter === key ? 'bg-orange-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium truncate group-hover:text-orange-300">{p.name}</span>
-                    {p.essencial && <span className="text-amber-400 text-xs shrink-0">★</span>}
-                  </div>
-                  <div className="text-xs text-slate-500 truncate">
-                    {p.height ? `${p.height} m` : ''}{p.height && p.region ? ' · ' : ''}{p.region || ''}
-                  </div>
-                </div>
-                {done
-                  ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  : <span className="w-4 h-4 rounded-full border border-slate-600 shrink-0" />}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                {label}
+              </button>
+            ))}
+          </div>
 
-    </div>
-  );
+          {/* Comarca filter */}
+          <div className="flex items-center gap-2">
+            <select value={comarcaFilter} onChange={e => setComarcaFilter(e.target.value)} className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-lg px-2 py-1.5 text-sm outline-none">
+              <option value="all">Totes les comarques</option>
+              {comarcaOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          {/* Proximity slider */}
+          <div className="flex flex-col gap-1.5">
+            <label className="flex justify-between text-xs text-slate-400">
+              <span>Llindar de proximitat</span>
+              <span className="font-medium text-slate-200">{proximityMeters} m</span>
+            </label>
+            <input type="range" min={20} max={500} step={5} value={proximityMeters} onChange={e => setProximityMeters(Number(e.target.value))} className="w-full accent-orange-500" />
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-1 text-xs text-slate-400">
+            <span>Ordenar:</span>
+            {([['name', 'Nom'], ['height', 'Altura'], ['status', 'Estat']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => toggleSort(key)}
+                className={`px-1.5 py-0.5 rounded ${sortBy === key ? 'text-orange-300' : 'hover:text-slate-200'}`}
+              >
+                {label}{sortBy === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+              </button>
+            ))}
+          </div>
+
+          {/* Peak list */}
+          <div className="flex flex-col gap-1 -mx-1">
+            {sortedPeaks.length === 0 && (
+              <div className="text-center text-sm text-slate-500 py-6">No hi ha cims que coincideixin.</div>
+            )}
+            {sortedPeaks.map(p => {
+              const done = completedPeakIds.has(p.id);
+              return (
+                <div
+                  key={p.id}
+                  className={`group flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors cursor-pointer ${done ? 'hover:bg-emerald-500/10' : 'hover:bg-slate-800/60'}`}
+                  onClick={() => onSelectPeak?.(p)}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium truncate group-hover:text-orange-300">{p.name}</span>
+                      {p.essencial && <span className="text-amber-400 text-xs shrink-0">★</span>}
+                    </div>
+                    <div className="text-xs text-slate-500 truncate">
+                      {p.height ? `${p.height} m` : ''}{p.height && p.region ? ' · ' : ''}{p.region || ''}
+                    </div>
+                  </div>
+                  {done
+                    ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    : <span className="w-4 h-4 rounded-full border border-slate-600 shrink-0" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+      </div>
+      );
 }

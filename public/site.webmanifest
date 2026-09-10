@@ -1,0 +1,15 @@
+{
+    "name": "100 cims",
+    "short_name": "100 cims",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#0f172a",
+    "icons": [
+        {
+            "src": "/assets/og.svg",
+            "sizes": "1200x630",
+            "type": "image/svg+xml"
+        }
+    ]
+}

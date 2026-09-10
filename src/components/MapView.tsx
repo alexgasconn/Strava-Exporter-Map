@@ -166,7 +166,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
   const layers = useMemo(() => {
     const nextLayers: any[] = [];
 
-  // Add CARTO raster tiles as the bottom-most layer so basemap is visible
+    // Add CARTO raster tiles as the bottom-most layer so basemap is visible
     nextLayers.push(
       new TileLayer({
         id: 'carto-raster-tiles',
@@ -419,20 +419,20 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
                 <button
                   onClick={() => setPopup(null)}
                   style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}
-                  aria-label="Cerrar"
+                  aria-label="Tancar"
                 >×</button>
               </div>
               <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                 {popup.peak.height && <span style={{ fontSize: 12, background: 'rgba(51,65,85,0.6)', padding: '2px 8px', borderRadius: 999 }}>{popup.peak.height} m</span>}
                 {popup.peak.essencial && <span style={{ fontSize: 12, background: 'rgba(234,179,8,0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: 999 }}>Essencial</span>}
                 <span style={{ fontSize: 12, background: popup.peak.completed ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.15)', color: popup.peak.completed ? '#4ade80' : '#cbd5e1', padding: '2px 8px', borderRadius: 999 }}>
-                  {popup.peak.completed ? 'Completado' : 'Pendiente'}
+                  {popup.peak.completed ? 'Completat' : 'Pendent'}
                 </span>
               </div>
               {popup.peak.conquest && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(148,163,184,0.15)' }}>
                   <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Conquerit amb</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{popup.peak.conquest.name || 'Actividad'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{popup.peak.conquest.name || 'Activitat'}</div>
                   {popup.peak.conquest.date && (
                     <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 1 }}>
                       {new Date(popup.peak.conquest.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
@@ -440,7 +440,7 @@ export default function MapView({ activities, viewMode, peaks, showPeaks = true,
                   )}
                 </div>
               )}
-              {popup.peak.url && <a href={popup.peak.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 10, color: '#fbbf24', fontSize: 13, fontWeight: 600 }}>Ver en FEEC →</a>}
+              {popup.peak.url && <a href={popup.peak.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 10, color: '#fbbf24', fontSize: 13, fontWeight: 600 }}>Veure a FEEC →</a>}
             </div>
           </div>
           {/* pointer */}

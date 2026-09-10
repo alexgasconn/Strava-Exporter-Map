@@ -1,7 +1,8 @@
 {
-  "name": "react-example",
+  "name": "100-cims",
   "private": true,
   "version": "0.0.0",
+  "description": "100 cims — Visualitza i controla el Repte 100 Cims important les teves activitats i arxius GPS.",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
